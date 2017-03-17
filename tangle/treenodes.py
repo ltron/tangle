@@ -1,7 +1,6 @@
 """ Module containing the main node types of the data flow graph
 """
 import asyncio
-from verktyg.settings.logconfig import logger
 
 class BaseNode:
     """ Base class for all node types
@@ -69,11 +68,8 @@ async def source_node_monitor(node, source):
             if message:
                 result = message.json()['price']
                 message.ack()
-                logger.info('Received message %s'%str(result))
                 node._value = result
                 node.set_dirty()
-            else:
-                logger.info('Nej')
     except asyncio.CancelledError:
         # Finish silently on cancel
         pass
