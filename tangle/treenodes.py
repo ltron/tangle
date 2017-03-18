@@ -7,22 +7,25 @@ class BaseNode:
     """
 
     def __init__(self):
-        self._watchers = set()
         self._dependants = set()
-        self._dirty = False
-        self._value = None 
+        self._update_event = None
+        self._cached_value = None
+        self._dirty = True
 
-    def set_dirty(self):
+    def notify_update(self):
         self._dirty = True
         for node in self._dependants:
-            node.set_dirty()
-        for watcher in self._watchers:
-            # Create tasks that evaluates asynchronosly
-            task = asyncio.ensure_future(watcher.evaluate())
+            node.notify_update()
+        if self.calculate_event:
+            self.calculate_event.set()
     
     def add_dependant(self, other):
         self._dependants.add(other)
 
+    def subscribe(self):
+        if self._update_event is None:
+            self._update_event = asyncio.Event()
+        return self._update_event
 
 class FuncNode(BaseNode):
     """ Node that calls a function
@@ -34,45 +37,49 @@ class FuncNode(BaseNode):
         for arg in args:
             arg.add_dependant(self)
 
-    async def value(self):
+    def value(self):
         if not self._dirty:
-            return self._value
+            return self._cached_value
         args = []
         for arg in self._args:
-            value = await arg.value()
+            value = arg.value()
             args.append(value)
-        self._value = self._func(*args)
+        self._cached_value = self._func(*args)
         self._dirty = False
-        return self._value
-
-    def add_watcher(self, watcher):
-        self._watchers.add(watcher)
+        return self._cached_value
 
 class SourceNode(BaseNode):
-    """ A node that is a source of values. The source object is queue like and should
-    inplement an async get method. The source should be monitored by a coroutine
-    that will also set the SourceNode to dirty.
+    """ A node that is a source of values. 
+    The source object is queue like and should implement get
     """
     def __init__(self, source):                
         super().__init__()
-        self._source = source
+        self.source = source
     
-    async def value(self):
-        return self._value
+    def value(self):
+        return self._cached_value
 
-async def source_node_monitor(node, source):
-    try:
-        print(source)
-        while True:
-            message = await source.get()
-            if message:
-                result = message.json()['price']
-                message.ack()
-                node._value = result
-                node.set_dirty()
-    except asyncio.CancelledError:
-        # Finish silently on cancel
-        pass
+    def set_value(self, value):
+        self._cached_value = value
+        self.notify_update()
+
+    async def monitor(self):
+        try:
+            print(source)
+            while True:
+                value = await self.source.get()
+                self.set_value(value)
+        except asyncio.CancelledError:
+            # Finish silently on cancel
+            pass
+
+async def print_watcher(node):
+    update_event = node.subscribe()
+    while True:
+        await update_event
+        value = node.value()
+        print(value)
+
 
 class PrintWatcher:
     def __init__(self, node):
