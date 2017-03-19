@@ -80,15 +80,3 @@ async def print_watcher(node):
         value = node.value()
         print(value)
 
-
-class PrintWatcher:
-    def __init__(self, node):
-        self.watched_node = node
-        node.add_watcher(self)
-
-    async def evaluate(self):
-        value = await self.watched_node.value()
-        print('Value:', value)
-
-
-
