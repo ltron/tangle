@@ -5,7 +5,7 @@ from .treenodes import SourceNode, FuncNode, MethodNode, PrintWatcher
 from .treenodes import source_node_monitor
 
 
-class Element:
+class Element(object):
     def __init__(self, func, *args):
         self.func = func
         self.args = args
@@ -52,7 +52,7 @@ class TangledSelf(object):
     def __getattr__(self, method_name):
         return MethodName(method_name)
 
-def build_calculation(obj, element):
+def build_tree(obj, element):
     print(element.name, element.owner)
     if not isinstance(obj, element.owner):
         obj = obj.get_mapped_object(element.owner)
@@ -60,7 +60,7 @@ def build_calculation(obj, element):
     calculation = obj.calculations.get(element.name, None)
     if calculation:
         return calculation
-    args = [build_calculation(obj, arg) for arg in element.args]
+    args = [build_tree(obj, arg) for arg in element.args]
     if element.is_source:
         # Source Element should have func taking instance
         # as input and returns a queue with async get method
@@ -71,7 +71,9 @@ def build_calculation(obj, element):
         return MethodNode(obj, element.method_name)
     return FuncNode(element.func, *args)
 
-def dag_node(func):
+def tangled_function(func):
+    """ Decorator to create a tangled function
+    """
     @wraps(func)
     def wrapper(*args):
         return Element(func, *args)
