@@ -1,9 +1,13 @@
 import asyncio
-from tangle import Tangled, tangle_source, print_watcher
+from tangle import Tangled, tangle_source, PrintWatcher, tangled_function
 
 def create_random_source():
     queue = asyncio.Queue()
-    return queue 
+    return queue
+
+@tangled_function
+def do_stuff(a, b):
+    return 10.0 * a / (4 * b)
 
 class Foo(Tangled):
 
@@ -11,7 +15,7 @@ class Foo(Tangled):
 
     source2 = tangle_source(create_random_source)
 
-    node = source1 + source2
+    node = do_stuf(source1, source2)
 
 class Bar(Tangled):
 
