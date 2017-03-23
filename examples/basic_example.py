@@ -15,7 +15,7 @@ class Foo(Tangled):
 
     source2 = tangle_source(create_random_source)
 
-    node = do_stuf(source1, source2)
+    node = do_stuff(source1, source2)
 
 class Bar(Tangled):
 
