@@ -28,32 +28,43 @@ class Element(object):
 
     def __get__(self, instance, cls):
         if instance is not None:
-            calculation = build_calculation(instance, self) 
+            # If we have a class instance we build the valuation
+            # graph
+            calculation = build_tree(instance, self) 
             return calculation
         elif cls:
+            # if no instance then the was accessed on a class in 
+            # that case we want to return the Element descritor
+            # so it can be used to build a graph
             return self
 
 class SourceElement(Element):
     """ Element that represents a source of data. 
     """
     def __init__(self, source_factory):
-        # source_Factory is a callable that returns a async queue
+        # source_Factory is a callable that returns e.g. an async queue
         # the queue will be the source of the data
         super().__init__(None)
         self.source_factory = source_factory
         self.is_source = True
 
 class MethodElement(Element):
+    """ Element to allow method type building of the element graph
+    """
     def __init__(self, method_name):
         self.method_name = method_name
         super().__init__(None)
 
 class TangledSelf(object):
+    """ object that is a proxy for the class itself. To be able
+    to build the graph from a method call.
+    """
     def __getattr__(self, method_name):
         return MethodName(method_name)
 
 def build_tree(obj, element):
-    print(element.name, element.owner)
+    """ Build or return cached valuation graph
+    """
     if not isinstance(obj, element.owner):
         obj = obj.get_mapped_object(element.owner)
 
@@ -72,7 +83,7 @@ def build_tree(obj, element):
     return FuncNode(element.func, *args)
 
 def tangled_function(func):
-    """ Decorator to create a tangled function
+    """ Decorator to create a tangled function element
     """
     @wraps(func)
     def wrapper(*args):
@@ -82,7 +93,7 @@ def tangled_function(func):
 
 class TangleMeta(type):
     """ Go through all the Element descriptors and set the attribute
-    name on them.
+    name on them. So we can identify the calculation nodes by name
     """
 
     calculations = defaultdict(dict)
@@ -104,6 +115,8 @@ class MappingError(Exception):
     pass
 
 class Tangled(metaclass=TangleMeta):
+    """ Base class for tangled behaviour.
+    """
 
     def __init__(self):
         self.calculations = {}
@@ -128,37 +141,3 @@ def register_as_mapping(other):
 def get_source():
     return Element(None)
 
-
-"""
-class A(DagBase):
-
-    def __init__(self, name):
-        super().__init__()
-        self.name = name
-
-    source1 = get_source()
-
-    source2 = get_source()
-
-    value_a = source1 + source2
-
-class B(DagBase):
-
-    def __init__(self, name, a):
-        super().__init__()
-        self.name = name
-        self.a = a
-
-    @register_as_mapping(A)
-    def get_a(self):
-        return self.a
-   
-    source1 = get_source()
-
-    value_b = A.value_a + A.source1
-
-a = A('a')
-b = B('b', a)
-
-calculation = b.value_b
-"""
