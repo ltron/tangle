@@ -14,18 +14,23 @@ class Element(object):
         self.is_object = True
         self.is_source = False
 
+    # class operators
     def __add__(self, other):
         return Element(operator.add, self, other)
 
-    def __sub__(self, other):
-        return Element(operator.sub, self, other)
+    def __matmul__(self, other):
+        return Element(operator.matmul, self, other)
 
     def __mul__(self, other):
         return Element(operator.mul, self, other)
 
+    def __sub__(self, other):
+        return Element(operator.sub, self, other)
+
     def __truediv__(self, other):
         return Element(operator.truediv, self, other)
 
+    # other methods
     def __get__(self, instance, cls):
         if instance is not None:
             # If we have a class instance we build the valuation
@@ -38,6 +43,7 @@ class Element(object):
             # so it can be used to build a graph
             return self
 
+
 class SourceElement(Element):
     """ Element that represents a source of data. 
     """
@@ -48,6 +54,7 @@ class SourceElement(Element):
         self.source_factory = source_factory
         self.is_source = True
 
+
 class MethodElement(Element):
     """ Element to allow method type building of the element graph
     """
@@ -55,12 +62,14 @@ class MethodElement(Element):
         self.method_name = method_name
         super().__init__(None)
 
+
 class TangledSelf(object):
     """ object that is a proxy for the class itself. To be able
     to build the graph from a method call.
     """
     def __getattr__(self, method_name):
         return MethodName(method_name)
+
 
 def build_tree(obj, element):
     """ Build or return cached valuation graph
@@ -81,6 +90,7 @@ def build_tree(obj, element):
         method_name = element.method_name
         return MethodNode(obj, element.method_name)
     return FuncNode(element.func, *args)
+
 
 def tangled_function(func):
     """ Decorator to create a tangled function element
@@ -111,8 +121,10 @@ class TangleMeta(type):
             elif hasattr(attr, 'mapping_for'):
                 namespace['mappings'][attr.mapping_for] =  attr
 
+
 class MappingError(Exception):
     pass
+
 
 class Tangled(metaclass=TangleMeta):
     """ Base class for tangled behaviour.
@@ -131,12 +143,14 @@ class Tangled(metaclass=TangleMeta):
                                                         cls.__name__)
 
             raise MappingError(msg)
-                    
+
+
 def register_as_mapping(other):
     def do_registring(func):
         func.mapping_for = other
         return func
     return do_registring
+
 
 def get_source():
     return Element(None)
