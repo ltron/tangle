@@ -73,10 +73,3 @@ class SourceNode(BaseNode):
             # Finish silently on cancel
             pass
 
-async def print_watcher(node):
-    update_event = node.subscribe()
-    while True:
-        await update_event
-        value = node.value()
-        print(value)
-
