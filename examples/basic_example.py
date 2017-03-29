@@ -1,5 +1,6 @@
 import asyncio
 from tangle import Tangled, tangle_source, tangled_function, tangled_mapping
+from tangle import make_tree_primitives
 import tangle
 
 def create_random_source():
@@ -10,7 +11,8 @@ def create_random_source():
 def do_stuff(a, b):
     return 10.0 * a / (4 * b)
 
-Tangled = make_tangled_base()
+treeprimitives = make_tree_primitives(asyncio.Event())
+Tangled = make_tangled_base(treeprimitives)
 
 class Foo(Tangled):
 

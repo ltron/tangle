@@ -74,9 +74,7 @@ class TangledSelf(object):
 class MappingError(Exception):
     pass
 
-def make_tangled_base(
-        tree = tree, 
-        ):
+def make_tangled_base(treeprimitives):
 
     def build_tree(obj, element):
         """ Build or return cached valuation graph
@@ -91,12 +89,12 @@ def make_tangled_base(
         if element.is_source:
             # Source Element should have func taking instance
             # as input and returns a queue with async get method
-            return tree.SourceNode(element.source_factory(obj))
+            return treeprimitives.SourceNode(element.source_factory(obj))
         elif element.is_object:
             # how to call a method?
             method_name = element.method_name
-            return tree.MethodNode(obj, element.method_name)
-        return FuncNode(element.func, *args)
+            return treeprimitives.MethodNode(obj, element.method_name)
+        return treeprimitives.FuncNode(element.func, *args)
 
 
 
