@@ -1,5 +1,6 @@
 import asyncio
-from tangle import Tangled, tangle_source, PrintWatcher, tangled_function, tangled_map
+from tangle import Tangled, tangle_source, tangled_function, tangled_mapping
+import tangle
 
 def create_random_source():
     queue = asyncio.Queue()
@@ -8,6 +9,8 @@ def create_random_source():
 @tangled_function
 def do_stuff(a, b):
     return 10.0 * a / (4 * b)
+
+Tangled = make_tangled_base()
 
 class Foo(Tangled):
 
@@ -32,7 +35,11 @@ class Bar(Tangled):
     bar_value = (source1 - Foo.node) / Foo.source1
 
 async def print_watcher(node):
-    update_even = node.subscribe()
+    try:
+        update_event = node.subscribe()
+    except MissingEventException:
+        update_event.update_event = asyncio.Event()
+        update_event = node.subscribe()
     while True:
         await update_event
         value = node.value()
@@ -44,8 +51,5 @@ async def run():
 
     watcher1 = print_watcher(bar.foo_value)
     watcher2 = print_watcher(foo.bar_value)
-
-
-
 
 

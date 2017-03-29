@@ -1,7 +1,5 @@
 """ Module containing the main node types of the data flow graph
 """
-import asyncio
-
 class BaseNode:
     """ Base class for all node types
     """
@@ -22,9 +20,23 @@ class BaseNode:
     def add_dependant(self, other):
         self._dependants.add(other)
 
+    @property
+    def update_event(self):
+        """ Returns the syncronisation event for this node.
+        """
+        return self._update_event
+    
+    @update_event.setter
+    def update_event(self, event):
+        """ Sets a synchronisation event for this node, used
+        to signal watchers of the node that an update has happened
+        e.g. threading.Event or asyncio.Event
+        """
+        self._update_event = event
+
     def subscribe(self):
         if self._update_event is None:
-            self._update_event = asyncio.Event()
+            self._update_event = Event()
         return self._update_event
 
 class FuncNode(BaseNode):
@@ -63,13 +75,4 @@ class SourceNode(BaseNode):
         self._cached_value = value
         self.notify_update()
 
-    async def monitor(self):
-        try:
-            print(source)
-            while True:
-                value = await self.source.get()
-                self.set_value(value)
-        except asyncio.CancelledError:
-            # Finish silently on cancel
-            pass
 

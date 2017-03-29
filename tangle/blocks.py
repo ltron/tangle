@@ -1,8 +1,8 @@
 import operator
 from functools import partial, wraps
 from collections import defaultdict
-from .treenodes import SourceNode, FuncNode, MethodNode, PrintWatcher 
-from .treenodes import source_node_monitor
+from .treeprimitives import SourceNode, FuncNode, MethodNode, PrintWatcher 
+from .treeprimitives import source_node_monitor
 
 
 class Element(object):
@@ -71,26 +71,74 @@ class TangledSelf(object):
         return MethodName(method_name)
 
 
-def build_tree(obj, element):
-    """ Build or return cached valuation graph
-    """
-    if not isinstance(obj, element.owner):
-        obj = obj.get_mapped_object(element.owner)
+class MappingError(Exception):
+    pass
 
-    calculation = obj.calculations.get(element.name, None)
-    if calculation:
-        return calculation
-    args = [build_tree(obj, arg) for arg in element.args]
-    if element.is_source:
-        # Source Element should have func taking instance
-        # as input and returns a queue with async get method
-        return SourceNode(element.source_factory(obj))
-    elif element.is_object:
-        # how to call a method?
-        method_name = element.method_name
-        return MethodNode(obj, element.method_name)
-    return FuncNode(element.func, *args)
+def make_tangled_base(
+        tree = tree, 
+        ):
 
+    def build_tree(obj, element):
+        """ Build or return cached valuation graph
+        """
+        if not isinstance(obj, element.owner):
+            obj = obj.get_mapped_object(element.owner)
+
+        calculation = obj.calculations.get(element.name, None)
+        if calculation:
+            return calculation
+        args = [build_tree(obj, arg) for arg in element.args]
+        if element.is_source:
+            # Source Element should have func taking instance
+            # as input and returns a queue with async get method
+            return tree.SourceNode(element.source_factory(obj))
+        elif element.is_object:
+            # how to call a method?
+            method_name = element.method_name
+            return tree.MethodNode(obj, element.method_name)
+        return FuncNode(element.func, *args)
+
+
+
+    class TangleMeta(type):
+        """ Go through all the Element descriptors and set the attribute
+        name on them. So we can identify the calculation nodes by name
+        """
+
+        calculations = defaultdict(dict)
+
+        def __new__(meta, name, bases, namespace):
+            namespace['mappings'] = {}
+            return type.__new__(meta, name, bases, namespace)
+
+        def __init__(cls, name, bases, namespace):
+            super().__init__(name, bases, namespace)
+            for name, attr in namespace.items():
+                if isinstance(attr, Element):
+                    attr.name = name
+                    attr.owner = cls
+                elif hasattr(attr, 'mapping_for'):
+                    namespace['mappings'][attr.mapping_for] =  attr
+
+
+    class Tangled(metaclass=TangleMeta):
+        """ Base class for tangled behaviour.
+        """
+
+        def __init__(self):
+            self.calculations = {}
+
+        def get_mapped_object(self, cls):
+            try:
+                return self.mappings[cls](self)
+            except:
+                my_class_name = self.__class__.__name__
+                other_class_name = cls.__name__
+                msg = 'No mapping between {} and {}'.format(my_class_name,
+                                                            cls.__name__)
+                raise MappingError(msg)
+
+    return Tangled
 
 def tangled_function(func):
     """ Decorator to create a tangled function element
@@ -100,52 +148,10 @@ def tangled_function(func):
         return Element(func, *args)
     return wrapper
 
-
-class TangleMeta(type):
-    """ Go through all the Element descriptors and set the attribute
-    name on them. So we can identify the calculation nodes by name
+def tangled_mapping(other):
+    """ Decorator that registers the method to be a mapping to
+    the class other
     """
-
-    calculations = defaultdict(dict)
-
-    def __new__(meta, name, bases, namespace):
-        namespace['mappings'] = {}
-        return type.__new__(meta, name, bases, namespace)
-
-    def __init__(cls, name, bases, namespace):
-        super().__init__(name, bases, namespace)
-        for name, attr in namespace.items():
-            if isinstance(attr, Element):
-                attr.name = name
-                attr.owner = cls
-            elif hasattr(attr, 'mapping_for'):
-                namespace['mappings'][attr.mapping_for] =  attr
-
-
-class MappingError(Exception):
-    pass
-
-
-class Tangled(metaclass=TangleMeta):
-    """ Base class for tangled behaviour.
-    """
-
-    def __init__(self):
-        self.calculations = {}
-
-    def get_mapped_object(self, cls):
-        try:
-            return self.mappings[cls](self)
-        except:
-            my_class_name = self.__class__.__name__
-            other_class_name = cls.__name__
-            msg = 'No mapping between {} and {}'.format(my_class_name,
-                                                        cls.__name__)
-
-            raise MappingError(msg)
-
-
-def register_as_mapping(other):
     def do_registring(func):
         func.mapping_for = other
         return func
