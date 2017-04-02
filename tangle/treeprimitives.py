@@ -2,6 +2,8 @@
 """
 from types import SimpleNamespace
 
+__all__ = ['make_tree_primitives']
+
 def make_tree_primitives(Event):
 
     class BaseNode:
@@ -64,7 +66,7 @@ def make_tree_primitives(Event):
             self._cached_value = value
             self.notify_update()
 
-    return SimpleNamespace({'FunctionNode': FunctionNode,
-                            'ValueNode' : ValueNode})
+    return SimpleNamespace(FunctionNode = FunctionNode,
+                            ValueNode = ValueNode)
 
 

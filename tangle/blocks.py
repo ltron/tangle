@@ -1,10 +1,10 @@
 import operator
 from functools import partial, wraps
 from collections import defaultdict
-from .treeprimitives import SourceNode, FuncNode, MethodNode, PrintWatcher 
-from .treeprimitives import source_node_monitor
 
-
+__all__ = ['tangled_function',
+           'tangled_map',
+           'make_tangled_base']
 
 class MappingError(Exception):
     pass
@@ -17,7 +17,7 @@ def tangled_function(func):
         return Element(func, *args)
     return wrapper
 
-def tangled_mapping(other):
+def tangled_map(other):
     """ Decorator that registers the method to be a mapping to
     the class other
     """
@@ -94,7 +94,7 @@ def make_tangled_base(treeprimitives):
                 return self
 
 
-    class SourceElement(Element):
+    class TangledSource(Element):
         """ Element that represents a source of data. 
         """
         def __init__(self, source_factory):
@@ -104,19 +104,23 @@ def make_tangled_base(treeprimitives):
             self.source_factory = source_factory
             self.is_source = True
 
-    class TangledSelf(Element):
-        """ object that is a proxy for the class itself. To be able
-        to build the graph from a method call.
-        """
-        def __getattr__(self, method_name):
-            return MethodName(method_name)
-
     class MethodElement(Element):
         """ Element to allow method type building of the element graph
         """
         def __init__(self, method_name):
             self.method_name = method_name
             super().__init__(None)
+
+    class TangledSelf(Element):
+        """ object that is a proxy for the class itself. To be able
+        to build the graph from a method call.
+        """
+
+        def __init__(self):
+            super().__init__(None)
+
+        def __getattr__(self, method_name):
+            return MethodElement(method_name)
 
     class TangleMeta(type):
         """ Go through all the Element descriptors and set the attribute
@@ -125,8 +129,12 @@ def make_tangled_base(treeprimitives):
 
         calculations = defaultdict(dict)
 
+        def __prepare__(names, bases, **kwds):
+            return {'TangledSource': TangledSource}
+
         def __new__(meta, name, bases, namespace):
-            namespace['mappings'] = {}
+            #namespace['mappings'] = {}
+            namespace['TangledSource'] = TangledSource
             return type.__new__(meta, name, bases, namespace)
 
         def __init__(cls, name, bases, namespace):
