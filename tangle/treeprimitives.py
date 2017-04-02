@@ -1,10 +1,8 @@
 """ Module containing the main node types of the data flow graph
 """
-from collections import namedtuple
+from types import SimpleNamespace
 
-treeprimitives = namedtuple('TreePrimitives', 'FuncNode SourceNode MethodNode')
-
-def create_tree_primitives(Event):
+def make_tree_primitives(Event):
 
     class BaseNode:
         """ Base class for all node types
@@ -31,7 +29,7 @@ def create_tree_primitives(Event):
                 self._update_event = Event()
             return self._update_event
 
-    class FuncNode(BaseNode):
+    class FunctionNode(BaseNode):
         """ Node that calls a function
         """
         def __init__(self, func, *args):
@@ -52,9 +50,8 @@ def create_tree_primitives(Event):
             self._dirty = False
             return self._cached_value
 
-    class SourceNode(BaseNode):
-        """ A node that is a source of values. 
-        The source object is queue like and should implement get
+    class ValueNode(BaseNode):
+        """ A node that is a value. 
         """
         def __init__(self, source):                
             super().__init__()
@@ -67,6 +64,7 @@ def create_tree_primitives(Event):
             self._cached_value = value
             self.notify_update()
 
-    return treeprimitives._make([FuncNode, SourceNode, MethodNode])
+    return SimpleNamespace({'FunctionNode': FunctionNode,
+                            'ValueNode' : ValueNode})
 
 
