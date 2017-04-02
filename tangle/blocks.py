@@ -2,29 +2,10 @@ import operator
 from functools import partial, wraps
 from collections import defaultdict
 
-__all__ = ['tangled_function',
-           'tangled_map',
-           'make_tangled_base']
+__all__ = ['make_tangled_base']
 
 class MappingError(Exception):
     pass
-
-def tangled_function(func):
-    """ Decorator to create a tangled function element
-    """
-    @wraps(func)
-    def wrapper(*args):
-        return Element(func, *args)
-    return wrapper
-
-def tangled_map(other):
-    """ Decorator that registers the method to be a mapping to
-    the class other
-    """
-    def register(func):
-        func.mapping_for = other
-        return func
-    return register 
 
 def make_tangled_base(treeprimitives):
     """ Creates the Tangled base class. If a class inherits from this it will be
@@ -133,8 +114,7 @@ def make_tangled_base(treeprimitives):
             return {'TangledSource': TangledSource}
 
         def __new__(meta, name, bases, namespace):
-            #namespace['mappings'] = {}
-            namespace['TangledSource'] = TangledSource
+            namespace['tangled_maps'] = {}
             return type.__new__(meta, name, bases, namespace)
 
         def __init__(cls, name, bases, namespace):
@@ -166,6 +146,27 @@ def make_tangled_base(treeprimitives):
                 msg = 'No tangled map between {} and {}'.format(my_class_name,
                                                             cls.__name__)
                 raise MappingError(msg)
+        
+        @staticmethod
+        def tangled_function(func):
+            """ Decorator to create a tangled function element
+            """
+            @wraps(func)
+            def wrapper(*args):
+                return Element(func, *args)
+            return wrapper
+
+        @staticmethod
+        def tangled_map(other):
+            """ Decorator that registers the method to be a mapping to
+            the class other
+            """
+            def register(func):
+                func.mapping_for = other
+                return func
+            return register 
+
+
 
     return Tangled
 
