@@ -24,6 +24,12 @@ def make_tangled_base(treeprimitives):
             self.is_method_call = False
             self.is_source = False
 
+        def __str__(self):
+            return '<Element %s>'%self.name
+
+        def __repr__(self):
+            return '<Element %s>'%self.name
+        
         # class operators
         def __add__(self, other):
             return Element(operator.add, self, other)
@@ -44,24 +50,30 @@ def make_tangled_base(treeprimitives):
         def build_tree(obj, element):
             """ Build or return cached valuation graph
             """
-            if not isinstance(obj, element.owner):
+            if element.owner and not isinstance(obj, element.owner):
                 obj = obj.get_mapped_object(element.owner)
 
             calculation = obj.calculations.get(element.name, None)
+
             if calculation:
                 return calculation
-            args = [build_tree(obj, arg) for arg in element.args]
+            args = [Element.build_tree(obj, arg) for arg in element.args]
             if element.is_source:
                 # Source Element should have func taking instance
                 # as input and returns a queue with async get method
-                source_node = treeprimitives.ValueNode(element.source_factory(obj))
+                #element.source_factory(obj)
+                node = treeprimitives.ValueNode()
             elif element.is_method_call:
                 # how to call a method?
                 method = getattr(obj, element.method_name)
-                treeprimitives.FunctionNode(method, obj)
-            return treeprimitives.FunctionNode(element.func, *args)
+                node = treeprimitives.FunctionNode(method, obj)
+            else:
+                node = treeprimitives.FunctionNode(element.func, *args)
+            node.element = element
+            if element.name is not None:
+                obj.calculations[element.name] = node
+            return node
 
-        # other methods
         def __get__(self, instance, cls):
             if instance is not None:
                 # If we have a class instance we build the valuation
@@ -108,8 +120,6 @@ def make_tangled_base(treeprimitives):
         name on them. So we can identify the calculation nodes by name
         """
 
-        calculations = defaultdict(dict)
-
         def __prepare__(names, bases, **kwds):
             return {'TangledSource': TangledSource}
 
@@ -137,14 +147,14 @@ def make_tangled_base(treeprimitives):
             self.calculations = {}
             self.sources = set()
 
-        def get_mapped_object(self, other_clas):
+        def get_mapped_object(self, other_class):
             try:
-                return self.tangled_map[other_class](self)
+                return self.tangled_maps[other_class](self)
             except:
                 my_class_name = self.__class__.__name__
-                other_class_name = cls.__name__
+                other_class_name = other_class.__name__
                 msg = 'No tangled map between {} and {}'.format(my_class_name,
-                                                            cls.__name__)
+                                                            other_class.__name__)
                 raise MappingError(msg)
         
         @staticmethod

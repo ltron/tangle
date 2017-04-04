@@ -24,7 +24,8 @@ class Foo(Tangled):
 class Bar(Tangled):
 
     def __init__(self, foo):
-        self._foo
+        super().__init__()
+        self._foo = foo
 
     @Tangled.tangled_map(Foo)
     def my_foo(self):
@@ -35,21 +36,32 @@ class Bar(Tangled):
     bar_value = (source1 - Foo.foo_value) / Foo.source1
 
 async def print_watcher(node):
-    try:
-        update_event = node.subscribe()
-    except MissingEventException:
-        update_event.update_event = asyncio.Event()
-        update_event = node.subscribe()
+    update_event = node.subscribe()
     while True:
         await update_event
         value = node.value()
         print(value)
 
-async def run():
-    foo = Foo()
-    bar = Bar(foo)
+foo = Foo()
+bar = Bar(foo)
 
-    watcher1 = print_watcher(bar.foo_value)
-    watcher2 = print_watcher(foo.bar_value)
+print('Bar calculation dict is empty:', bar.calculations)
+
+# set some source values
+foo.source1.set_value(2.0)
+foo.source2.set_value(1.25)
+bar.source1.set_value(0.5)
+
+print('Calculate bar_value to', bar.bar_value.value())
+print('Bar calculation dict is populated:', bar.calculations)
+
+print('bar_value dirty flag', bar.bar_value._dirty)
+print('Setting foo.source1 to 2.25')
+foo.source1.set_value(2.25)
+print('bar_value dirty flag after', bar.bar_value._dirty)
+print('New bar_value', bar.bar_value.value())
+
+#watcher1 = print_watcher(bar.foo_value)
+#watcher2 = print_watcher(foo.bar_value)
 
 

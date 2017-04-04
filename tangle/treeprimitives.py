@@ -15,13 +15,23 @@ def make_tree_primitives(Event):
             self._update_event = None
             self._cached_value = None
             self._dirty = True
+            self._element = None
+
+        def __str__(self):
+            if self._element:
+                return '<Node %s>'%self._element.name
+            else:
+                return '<Node>'
+
+        def __repr__(self):
+            return self.__str__()
 
         def notify_update(self):
             self._dirty = True
             for node in self._dependants:
                 node.notify_update()
-            if self.calculate_event:
-                self.calculate_event.set()
+            if self._update_event:
+                self._update_event.set()
         
         def add_dependant(self, other):
             self._dependants.add(other)
@@ -30,6 +40,14 @@ def make_tree_primitives(Event):
             if self._update_event is None:
                 self._update_event = Event()
             return self._update_event
+        
+        @property
+        def element(self):
+            return self._element
+
+        @element.setter
+        def element(self, element):
+            self._element = element
 
     class FunctionNode(BaseNode):
         """ Node that calls a function
@@ -55,9 +73,8 @@ def make_tree_primitives(Event):
     class ValueNode(BaseNode):
         """ A node that is a value. 
         """
-        def __init__(self, source):                
+        def __init__(self):                
             super().__init__()
-            self.source = source
         
         def value(self):
             return self._cached_value
