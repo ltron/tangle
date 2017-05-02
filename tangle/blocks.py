@@ -29,7 +29,7 @@ def make_tangled_base(treeprimitives):
 
         def __repr__(self):
             return '<Element %s>'%self.name
-        
+
         # class operators
         def __add__(self, other):
             return Element(operator.add, self, other)
@@ -156,7 +156,7 @@ def make_tangled_base(treeprimitives):
                 msg = 'No tangled map between {} and {}'.format(my_class_name,
                                                             other_class.__name__)
                 raise MappingError(msg)
-        
+
         @staticmethod
         def tangled_function(func):
             """ Decorator to create a tangled function element

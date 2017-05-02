@@ -1,16 +1,15 @@
 import asyncio
 import tangle
-from tangle import make_tree_primitives, make_tangled_base
+from tangle import basetreeprimitives, make_tangled_base
 
 def create_random_source():
     queue = asyncio.Queue()
     return queue
 
-treeprimitives = make_tree_primitives(asyncio.Event)
-Tangled = make_tangled_base(treeprimitives)
+Tangled = make_tangled_base(basetreeprimitives)
 
 @Tangled.tangled_function
-def do_stuff(a, b):
+async def do_stuff(a, b):
     return 10.0 * a / (4 * b)
 
 class Foo(Tangled):
@@ -30,7 +29,7 @@ class Bar(Tangled):
     @Tangled.tangled_map(Foo)
     def my_foo(self):
         return self._foo
-   
+
     source1 = TangledSource(create_random_source)
 
     bar_value = (source1 - Foo.foo_value) / Foo.source1
@@ -50,17 +49,24 @@ print('Bar calculation dict is empty:', bar.calculations)
 # set some source values
 foo.source1.set_value(2.0)
 foo.source2.set_value(1.25)
-bar.source1.set_value(0.5)
+bar.source1.set_value(0.5555)
 
-print('Calculate bar_value to', bar.bar_value.value())
+res = bar.bar_value.value()
+try:
+    res.send(None)
+except StopIteration as exc:
+    value = exc.value
+print('Calculate bar_value to', value)
+
 print('Bar calculation dict is populated:', bar.calculations)
 
+"""
 print('bar_value dirty flag', bar.bar_value._dirty)
 print('Setting foo.source1 to 2.25')
 foo.source1.set_value(2.25)
 print('bar_value dirty flag after', bar.bar_value._dirty)
 print('New bar_value', bar.bar_value.value())
-
+"""
 #watcher1 = print_watcher(bar.foo_value)
 #watcher2 = print_watcher(foo.bar_value)
 
