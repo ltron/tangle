@@ -59,7 +59,7 @@ def make_tangled_base(treeprimitives):
             if not self.is_anonymous() and not isinstance(obj, self.owner):
                 # Element belongs to another class than the obj class
                 obj = obj.get_mapped_object(self.owner)
-            calculation = obj.calculations.get(self.name, None)
+            calculation = obj._calculations.get(self.name, None)
             if calculation:
                 return calculation
 
@@ -67,7 +67,7 @@ def make_tangled_base(treeprimitives):
             tree_node = self.build_node(obj, arg_nodes)
             tree_node.element = self
             if not self.is_anonymous():
-                obj.calculations[self.name] = tree_node
+                obj._calculations[self.name] = tree_node
             return tree_node
 
         def __get__(self, instance, cls):
@@ -92,7 +92,9 @@ def make_tangled_base(treeprimitives):
             super().__init__(None)
 
         def build_node(element, obj, args):
-            return treeprimitives.ValueNode()
+            tree_node = treeprimitives.ValueNode()
+            obj._sourcenodes.add(tree_node)
+            return tree_node
 
     class MethodElement(Element):
         """ Element to allow method type building of the element graph
@@ -145,8 +147,8 @@ def make_tangled_base(treeprimitives):
         self = TangledSelf()
 
         def __init__(self):
-            self.calculations = {}
-            self.sources = set()
+            self._calculations = {}
+            self._sourcenodes= set()
 
         def get_mapped_object(self, other_class):
             try:

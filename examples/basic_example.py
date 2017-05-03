@@ -44,7 +44,7 @@ async def print_watcher(node):
 foo = Foo()
 bar = Bar(foo)
 
-print('Bar calculation dict is empty:', bar.calculations)
+print('Bar calculation dict is empty:', bar._calculations)
 
 # set some source values
 foo.source1.set_value(2.0)
@@ -58,7 +58,8 @@ except StopIteration as exc:
     value = exc.value
 print('Calculate bar_value to', value)
 
-print('Bar calculation dict is populated:', bar.calculations)
+print('Bar calculation dict is populated:', bar._calculations)
+print('Sources:', foo._sourcenodes)
 
 """
 print('bar_value dirty flag', bar.bar_value._dirty)
