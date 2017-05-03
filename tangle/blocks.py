@@ -21,8 +21,6 @@ def make_tangled_base(treeprimitives):
             self.args = args
             self.name = None
             self.owner = None
-            self.is_method_call = False
-            self.is_source = False
 
         def __str__(self):
             return '<Element %s>'%self.name
@@ -46,39 +44,37 @@ def make_tangled_base(treeprimitives):
         def __truediv__(self, other):
             return Element(operator.truediv, self, other)
 
-        @staticmethod
-        def build_tree(obj, element):
+        def is_anonymous(self):
+            """ Anonymous functions do not have a owner.
+            """
+            return self.owner is None
+
+        def build_node(self, obj, arg_nodes):
+            tree_node = treeprimitives.FunctionNode(self.func, *arg_nodes)
+            return tree_node
+
+        def build_tree(self, obj):
             """ Build or return cached valuation graph
             """
-            if element.owner and not isinstance(obj, element.owner):
-                obj = obj.get_mapped_object(element.owner)
-
-            calculation = obj.calculations.get(element.name, None)
-
+            if not self.is_anonymous() and not isinstance(obj, self.owner):
+                # Element belongs to another class than the obj class
+                obj = obj.get_mapped_object(self.owner)
+            calculation = obj.calculations.get(self.name, None)
             if calculation:
                 return calculation
-            args = [Element.build_tree(obj, arg) for arg in element.args]
-            if element.is_source:
-                # Source Element should have func taking instance
-                # as input and returns a queue with async get method
-                #element.source_factory(obj)
-                node = treeprimitives.ValueNode()
-            elif element.is_method_call:
-                # how to call a method?
-                method = getattr(obj, element.method_name)
-                node = treeprimitives.FunctionNode(method, obj)
-            else:
-                node = treeprimitives.FunctionNode(element.func, *args)
-            node.element = element
-            if element.name is not None:
-                obj.calculations[element.name] = node
-            return node
+
+            arg_nodes = [arg.build_tree(obj) for arg in self.args]
+            tree_node = self.build_node(obj, arg_nodes)
+            tree_node.element = self
+            if not self.is_anonymous():
+                obj.calculations[self.name] = tree_node
+            return tree_node
 
         def __get__(self, instance, cls):
             if instance is not None:
                 # If we have a class instance we build the valuation
                 # graph
-                calculation = self.build_tree(instance, self) 
+                calculation = self.build_tree(instance)
                 return calculation
             elif cls:
                 # if no instance then the was accessed on a class in 
@@ -88,14 +84,15 @@ def make_tangled_base(treeprimitives):
 
 
     class TangledSource(Element):
-        """ Element that represents a source of data. 
+        """ Element that represents a source of data.
         """
         def __init__(self, source_factory):
             # source_Factory is a callable that returns e.g. an async queue
             # the queue will be the source of the data
             super().__init__(None)
-            self.source_factory = source_factory
-            self.is_source = True
+
+        def build_node(element, obj, args):
+            return treeprimitives.ValueNode()
 
     class MethodElement(Element):
         """ Element to allow method type building of the element graph
@@ -103,6 +100,10 @@ def make_tangled_base(treeprimitives):
         def __init__(self, method_name):
             self.method_name = method_name
             super().__init__(None)
+
+        def build_node(self, obj, args):
+            method = getattr(obj, element.method_name)
+            node = treeprimitives.FunctionNode(method, obj, args)
 
     class TangledSelf(Element):
         """ object that is a proxy for the class itself. To be able
