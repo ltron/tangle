@@ -53,7 +53,7 @@ def make_tangled_base(treeprimitives):
             tree_node = treeprimitives.FunctionNode(self.func, *arg_nodes)
             return tree_node
 
-        def build_tree(self, obj):
+        async def build_tree(self, obj):
             """ Build or return cached valuation graph
             """
             if not self.is_anonymous() and not isinstance(obj, self.owner):
@@ -86,14 +86,14 @@ def make_tangled_base(treeprimitives):
     class TangledSource(Element):
         """ Element that represents a source of data.
         """
-        def __init__(self, source_factory):
+        def __init__(self):
             # source_Factory is a callable that returns e.g. an async queue
             # the queue will be the source of the data
             super().__init__(None)
 
         def build_node(element, obj, args):
             tree_node = treeprimitives.ValueNode()
-            obj._sourcenodes.add(tree_node)
+            obj.register_source(tree_node)
             return tree_node
 
     class MethodElement(Element):
@@ -106,6 +106,7 @@ def make_tangled_base(treeprimitives):
         def build_node(self, obj, args):
             method = getattr(obj, element.method_name)
             node = treeprimitives.FunctionNode(method, obj, args)
+            return node
 
     class TangledSelf(Element):
         """ object that is a proxy for the class itself. To be able
@@ -124,27 +125,29 @@ def make_tangled_base(treeprimitives):
         """
 
         def __prepare__(names, bases, **kwds):
-            return {'TangledSource': TangledSource}
+            return {'TangledSource': TangledSource,
+                    'self': TangledSelf()}
 
         def __new__(meta, name, bases, namespace):
             namespace['tangled_maps'] = {}
-            return type.__new__(meta, name, bases, namespace)
+            return super().__new__(meta, name, bases, namespace)
 
         def __init__(cls, name, bases, namespace):
-            super().__init__(name, bases, namespace)
             for name, attr in namespace.items():
                 if isinstance(attr, Element):
                     attr.name = name
                     attr.owner = cls
                 elif hasattr(attr, 'mapping_for'):
                     namespace['tangled_maps'][attr.mapping_for] =  attr
-
+            super().__init__(name, bases, namespace)
 
     class Tangled(metaclass=TangleMeta):
         """ Base class for tangled behaviour.
         """
 
         self = TangledSelf()
+
+        source_monitor_callbacks = set()
 
         def __init__(self):
             self._calculations = {}
@@ -159,6 +162,15 @@ def make_tangled_base(treeprimitives):
                 msg = 'No tangled map between {} and {}'.format(my_class_name,
                                                             other_class.__name__)
                 raise MappingError(msg)
+
+        @classmethod
+        def register_source_monitor_callback(cls, func):
+            cls.source_monitor_callbacks.add(func)
+
+        def register_source(self, tree_node):
+            self._sourcenodes.add(tree_node)
+            for callback in self.source_monitor_callbacks:
+                callback(self, treenode)
 
         @staticmethod
         def tangled_function(func):
