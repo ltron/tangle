@@ -9,7 +9,7 @@ async def source_feeder(source_node):
 
 source_queue = curio.Queue()
 
-def source_callback(obj, source_node):
+async def source_callback(obj, source_node):
     await source_queue.put(source_feeder(source_node))
 
 async def source_monitor():
@@ -58,7 +58,8 @@ async def main():
     foo = Foo()
     bar = Bar(foo)
 
-    print(bar.bar_value)
+    calculation = await bar.bar_value
+    print(await calculation.value())
 
     print(foo._sourcenodes)
     print(bar._sourcenodes)
@@ -69,7 +70,5 @@ async def main():
     print('bar_value dirty flag after', bar.bar_value._dirty)
     print('New bar_value', bar.bar_value.value())
     """
-    #watcher1 = print_watcher(bar.foo_value)
-    #watcher2 = print_watcher(foo.bar_value)
 
-curio.run(main()
+curio.run(main())

@@ -45,11 +45,11 @@ def make_tangled_base(treeprimitives):
             return Element(operator.truediv, self, other)
 
         def is_anonymous(self):
-            """ Anonymous functions do not have a owner.
+            """ Anonymous functions do not have an owner.
             """
             return self.owner is None
 
-        def build_node(self, obj, arg_nodes):
+        async def build_node(self, obj, arg_nodes):
             tree_node = treeprimitives.FunctionNode(self.func, *arg_nodes)
             return tree_node
 
@@ -63,8 +63,8 @@ def make_tangled_base(treeprimitives):
             if calculation:
                 return calculation
 
-            arg_nodes = [arg.build_tree(obj) for arg in self.args]
-            tree_node = self.build_node(obj, arg_nodes)
+            arg_nodes = [await arg.build_tree(obj) for arg in self.args]
+            tree_node = await self.build_node(obj, arg_nodes)
             tree_node.element = self
             if not self.is_anonymous():
                 obj._calculations[self.name] = tree_node
@@ -73,12 +73,13 @@ def make_tangled_base(treeprimitives):
         def __get__(self, instance, cls):
             if instance is not None:
                 # If we have a class instance we build the valuation
-                # graph
+                # graph. This returns a coroutine that has to
+                # be awaited
                 calculation = self.build_tree(instance)
                 return calculation
             elif cls:
                 # if no instance then the was accessed on a class in 
-                # that case we want to return the Element descritor
+                # that case we want to return the Element descriptor
                 # so it can be used to build a graph
                 return self
 
@@ -91,9 +92,9 @@ def make_tangled_base(treeprimitives):
             # the queue will be the source of the data
             super().__init__(None)
 
-        def build_node(element, obj, args):
+        async def build_node(element, obj, args):
             tree_node = treeprimitives.ValueNode()
-            obj.register_source(tree_node)
+            await obj.register_source(tree_node)
             return tree_node
 
     class MethodElement(Element):
@@ -103,7 +104,7 @@ def make_tangled_base(treeprimitives):
             self.method_name = method_name
             super().__init__(None)
 
-        def build_node(self, obj, args):
+        async def build_node(self, obj, args):
             method = getattr(obj, element.method_name)
             node = treeprimitives.FunctionNode(method, obj, args)
             return node
@@ -145,8 +146,6 @@ def make_tangled_base(treeprimitives):
         """ Base class for tangled behaviour.
         """
 
-        self = TangledSelf()
-
         source_monitor_callbacks = set()
 
         def __init__(self):
@@ -167,10 +166,13 @@ def make_tangled_base(treeprimitives):
         def register_source_monitor_callback(cls, func):
             cls.source_monitor_callbacks.add(func)
 
-        def register_source(self, tree_node):
+        async def register_source(self, tree_node):
+            """ Called when a source node is created. Calls all registered
+            source monitor callbacks.
+            """
             self._sourcenodes.add(tree_node)
             for callback in self.source_monitor_callbacks:
-                callback(self, treenode)
+                await callback(self, tree_node)
 
         @staticmethod
         def tangled_function(func):
