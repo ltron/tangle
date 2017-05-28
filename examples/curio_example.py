@@ -1,11 +1,12 @@
+import random
 import curio
 import tangle
 from tangle import basetreeprimitives, make_tangled_base
 
 async def source_feeder(source_node):
-    while true:
-        await curio.sleep(random.random())
-        source_node.set_value(random.random)
+    while True:
+        await curio.sleep(random.uniform(1,4))
+        await source_node.set_value(random.uniform(-100,100))
 
 source_queue = curio.Queue()
 
@@ -15,7 +16,7 @@ async def source_callback(obj, source_node):
 async def source_monitor():
     while True:
         feeder = await source_queue.get()
-        curio.spawn(feeder)
+        await curio.spawn(feeder, daemon=True)
 
 Tangled = make_tangled_base(basetreeprimitives)
 
@@ -48,21 +49,33 @@ class Bar(Tangled):
     bar_value = (source1 - Foo.foo_value) / Foo.source1
 
 async def print_watcher(node):
-    update_event = node.subscribe()
+    node_name = node.name()
+    update_event = curio.Event()
+    node.register_for_notification(update_event)
     while True:
-        await update_event
-        value = node.value()
-        print(value)
+        await update_event.wait()
+        value = await node.value()
+        print(f'{node.name()}: {value}')
+        update_event.clear()
 
 async def main():
     foo = Foo()
     bar = Bar(foo)
 
-    calculation = await bar.bar_value
-    print(await calculation.value())
+    await curio.spawn(source_monitor(), daemon=True)
 
-    print(foo._sourcenodes)
-    print(bar._sourcenodes)
+    calculation = await bar.bar_value
+
+    watcher = await curio.spawn(print_watcher(calculation))
+
+    """source1 = await foo.source1
+    source1.set_value(1.0)
+    source2 = await foo.source2
+    source2.set_value(2.0)
+    source1 = await bar.source1
+    source1.set_value(3.0)
+    """
+    await watcher.join()
     """
     print('bar_value dirty flag', bar.bar_value._dirty)
     print('Setting foo.source1 to 2.25')

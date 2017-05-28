@@ -15,6 +15,7 @@ class BaseNode:
         self._cached_value = None
         self._dirty = True
         self._element = None
+        self._initialised = False
 
     def __str__(self):
         if self._element:
@@ -25,12 +26,15 @@ class BaseNode:
     def __repr__(self):
         return self.__str__()
 
-    def notify_update(self):
-        self._dirty = True
-        for node in self._dependants:
-            node.notify_update()
-        for event in self._update_events:
-            event.set()
+    async def notify_update(self):
+        if self.is_initialised():
+            # Only propagate update if this node (and its children)
+            # are initialised 
+            self._dirty = True
+            for node in self._dependants:
+                await node.notify_update()
+            for event in self._update_events:
+                await event.set()
 
     def add_dependant(self, other):
         self._dependants.add(other)
@@ -45,6 +49,9 @@ class BaseNode:
     @element.setter
     def element(self, element):
         self._element = element
+
+    def name(self):
+        return self._element.name
 
 class FunctionNode(BaseNode):
     """ Node that calls a function
@@ -71,18 +78,30 @@ class FunctionNode(BaseNode):
         self._dirty = False
         return self._cached_value
 
+    def is_initialised(self):
+        if self._initialised:
+            return True
+        else:
+            self._initialised = all([arg.is_initialised() for arg in self._args])
+        return self._initialised
+
 class ValueNode(BaseNode):
     """ A node that is a value.
     """
     def __init__(self):
         super().__init__()
+        self._initialised = False
 
     async def value(self):
         return self._cached_value
 
-    def set_value(self, value):
+    def is_initialised(self):
+        return self._initialised
+
+    async def set_value(self, value):
+        self._initialised = True
         self._cached_value = value
-        self.notify_update()
+        await self.notify_update()
 
 basetreeprimitives = SimpleNamespace(FunctionNode = FunctionNode,
                                  ValueNode = ValueNode)
