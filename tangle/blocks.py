@@ -1,3 +1,7 @@
+""" This module provides the Element descriptor object. These are used as blueprints to
+build a graph. It also provides the Tangled class. A class that inherits from Tangled
+will be able to be part of the graph.
+"""
 import operator
 from functools import partial, wraps
 from collections import defaultdict
@@ -12,11 +16,18 @@ def make_tangled_base(treeprimitives):
     able be part of a tangled graph structure
 
     treeprimitives - a name space with the node primitives which will be part
-                     of the instance graphs.
+                     of the instance graphs. These are the actual node objects.
     """
 
     class Element(object):
+        """ Desciptor used as part of the blueprint for building the instance graph.
+        """
         def __init__(self, func, *args):
+            """ 
+            func - callable that will be applied to the results of the input nodes
+            args - input Element descriptors, these will provide the input to func in
+                    the realised node.
+            """
             self.func = func
             self.args = args
             self.name = None
@@ -27,8 +38,9 @@ def make_tangled_base(treeprimitives):
 
         def __repr__(self):
             return '<Element %s>'%self.name
-
-        # class operators
+        
+        # Magic methods create new Element objects for all standard operations 
+        # These elements won't have a new and is thus anonymous
         def __add__(self, other):
             return Element(operator.add, self, other)
 
@@ -45,20 +57,26 @@ def make_tangled_base(treeprimitives):
             return Element(operator.truediv, self, other)
 
         def is_anonymous(self):
-            """ Anonymous functions do not have an owner.
+            """ Anonymous elements do not have an owner, in that case
+            this returns None
             """
             return self.owner is None
 
         async def build_node(self, obj, arg_nodes):
+            """ Build an actual graph node
+            """
             tree_node = treeprimitives.FunctionNode(self.func, *arg_nodes)
             return tree_node
 
         async def build_tree(self, obj):
-            """ Build or return cached valuation graph
+            """ Build or return cached valuation graph.
+
+            obj - this is the class instance that this node is tied to
             """
             if not self.is_anonymous() and not isinstance(obj, self.owner):
                 # Element belongs to another class than the obj class
                 obj = obj.get_mapped_object(self.owner)
+            # check if calculation already exists
             calculation = obj._calculations.get(self.name, None)
             if calculation:
                 return calculation
@@ -71,6 +89,8 @@ def make_tangled_base(treeprimitives):
             return tree_node
 
         def __get__(self, instance, cls):
+            """ descriptor protocol implementation
+            """
             if instance is not None:
                 # If we have a class instance we build the valuation
                 # graph. This returns a coroutine that has to
@@ -88,8 +108,6 @@ def make_tangled_base(treeprimitives):
         """ Element that represents a source of data.
         """
         def __init__(self):
-            # source_Factory is a callable that returns e.g. an async queue
-            # the queue will be the source of the data
             super().__init__(None)
 
         async def build_node(element, obj, args):
@@ -98,7 +116,7 @@ def make_tangled_base(treeprimitives):
             return tree_node
 
     class MethodElement(Element):
-        """ Element to allow method type building of the element graph
+        """ Element to allow graph building in an element type way
         """
         def __init__(self, method_name):
             self.method_name = method_name
@@ -121,8 +139,9 @@ def make_tangled_base(treeprimitives):
             return MethodElement(method_name)
 
     class TangleMeta(type):
-        """ Go through all the Element descriptors and set the attribute
-        name on them. So we can identify the calculation nodes by name
+        """ Goes through all the Element descriptors and set the attribute
+        name on them. So we can identify the calculation nodes by name and
+        cache them by the same name
         """
 
         def __prepare__(names, bases, **kwds):
@@ -136,9 +155,12 @@ def make_tangled_base(treeprimitives):
         def __init__(cls, name, bases, namespace):
             for name, attr in namespace.items():
                 if isinstance(attr, Element):
+                    # Sets name and owner on a Element object
                     attr.name = name
                     attr.owner = cls
                 elif hasattr(attr, 'mapping_for'):
+                    # sets up a map between classes, so that it's possible
+                    # to refer to Element instances with other owner classes
                     namespace['tangled_maps'][attr.mapping_for] =  attr
             super().__init__(name, bases, namespace)
 
@@ -168,7 +190,8 @@ def make_tangled_base(treeprimitives):
 
         async def register_source(self, tree_node):
             """ Called when a source node is created. Calls all registered
-            source monitor callbacks.
+            source monitor callbacks. These typically ensures that the source
+            node recieves updates. These updates drive the graph. 
             """
             self._sourcenodes.add(tree_node)
             for callback in self.source_monitor_callbacks:

@@ -1,4 +1,5 @@
-""" Module containing the main node types of the data flow graph
+""" Module containing example node objects that can be used by Element descriptors
+to build a data flow graph
 """
 import inspect
 from types import SimpleNamespace
@@ -54,7 +55,7 @@ class BaseNode:
         return self._element.name
 
 class FunctionNode(BaseNode):
-    """ Node that calls a function
+    """ A function node whose inputs are the child nodes.
     """
     def __init__(self, func, *args):
         super().__init__()
@@ -65,6 +66,8 @@ class FunctionNode(BaseNode):
             arg.add_dependant(self)
 
     async def value(self):
+        """ coroutine that calculates or returns a cached value
+        """
         if not self._dirty:
             return self._cached_value
         args = []
@@ -72,6 +75,7 @@ class FunctionNode(BaseNode):
             value = await arg.value()
             args.append(value)
         if self.iscoroutinefunction:
+            # handle the case when the func is a coroutine
             self._cached_value = await self._func(*args)
         else:
             self._cached_value = self._func(*args)
@@ -86,7 +90,7 @@ class FunctionNode(BaseNode):
         return self._initialised
 
 class ValueNode(BaseNode):
-    """ A node that is a value.
+    """ A realised node that contians a value. Used as source nodes.
     """
     def __init__(self):
         super().__init__()
