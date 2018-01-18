@@ -1,3 +1,7 @@
+""" Example of how to run tangle with asyncio.
+
+!!!!! This is not currently working  !!!!!
+"""
 import asyncio
 import tangle
 from tangle import basetreeprimitives, make_tangled_base
