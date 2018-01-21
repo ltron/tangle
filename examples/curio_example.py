@@ -4,26 +4,7 @@ import curio
 import tangle
 from tangle import basetreeprimitives, make_tangled_base
 
-async def source_feeder(source_node):
-    """i This coroutine will update a source node with values at random intervals
-    """
-    while True:
-        await curio.sleep(random.uniform(1,4))
-        await source_node.set_value(random.uniform(-100,100))
-
-source_queue = curio.Queue()
-
-async def source_callback(obj, source_node):
-    await source_queue.put(source_feeder(source_node))
-
-async def source_monitor():
-    while True:
-        feeder = await source_queue.get()
-        await curio.spawn(feeder, daemon=True)
-
 Tangled = make_tangled_base(basetreeprimitives)
-
-Tangled.register_source_monitor_callback(source_callback)
 
 @Tangled.tangled_function
 async def do_stuff(a, b):
@@ -60,6 +41,14 @@ class Bar(Tangled):
     # nodes can be dependant on nodes in other objects
     bar_value = (source1 - Foo.foo_value) / Foo.source1
 
+async def source_feeder(sources):
+    """This coroutine will update a source node with values at random intervals
+    """
+    while True:
+        chosen_source = random.choice(sources)
+        await curio.sleep(random.uniform(0.5, 2))
+        await chosen_source.set_value(random.uniform(-100,100))
+
 async def print_watcher(node):
     """ A watcher of a node that prints when update happens.
     """
@@ -78,14 +67,18 @@ async def main():
     foo = Foo()
     bar = Bar(foo)
 
-    # Starts the source monitor, this monitors the sources of data
-    # and ensures that the source nodes are updated accordingly
-    await curio.spawn(source_monitor(), daemon=True)
-
     # awaiting one of the Element attributes of an object will trigger
     # the building of that tree, all nodes this node is dependant on will
     # also be built. The source nodes will register with the source monitor
     calculation = await bar.bar_value
+
+    # Starts the source feeder to feed random data into the source nodes
+    all_sources = []
+    all_sources.extend(foo.sources())
+    all_sources.extend(bar.sources())
+    for source in all_sources:
+        await source.set_value(1.0)
+    await curio.spawn(source_feeder(all_sources), daemon=True)
 
     # We can no setup a watcher that listens for updates on the node.
     # The print_watcher will print the final result from source node

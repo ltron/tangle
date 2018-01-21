@@ -110,9 +110,9 @@ def make_tangled_base(treeprimitives):
         def __init__(self):
             super().__init__(None)
 
-        async def build_node(element, obj, args):
+        async def build_node(self, obj, args):
             tree_node = treeprimitives.ValueNode()
-            await obj.register_source(tree_node)
+            await obj.register_source(self.name, tree_node)
             return tree_node
 
     class MethodElement(Element):
@@ -172,7 +172,7 @@ def make_tangled_base(treeprimitives):
 
         def __init__(self):
             self._calculations = {}
-            self._sourcenodes= set()
+            self._sources = {}
 
         def get_mapped_object(self, other_class):
             try:
@@ -184,18 +184,15 @@ def make_tangled_base(treeprimitives):
                                                             other_class.__name__)
                 raise MappingError(msg)
 
-        @classmethod
-        def register_source_monitor_callback(cls, func):
-            cls.source_monitor_callbacks.add(func)
-
-        async def register_source(self, tree_node):
+        async def register_source(self, name, tree_node):
             """ Called when a source node is created. Calls all registered
             source monitor callbacks. These typically ensures that the source
             node recieves updates. These updates drive the graph. 
             """
-            self._sourcenodes.add(tree_node)
-            for callback in self.source_monitor_callbacks:
-                await callback(self, tree_node)
+            self._sources[name] = tree_node
+
+        def sources(self):
+            return self._sources.values()
 
         @staticmethod
         def tangled_function(func):
