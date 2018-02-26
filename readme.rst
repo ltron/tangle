@@ -1,4 +1,4 @@
-Tangle - directed graph for classes
+Tangle - directed graph and data flow for classes
 ===================================
 
 Tangle is a library for connecting class instances through dependency graphs.
