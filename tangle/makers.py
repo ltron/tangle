@@ -1,5 +1,9 @@
 """ Classes for building the graphs
 """
+from .treeprimitives import basetreeprimitives
+
+__all__ = ['Tangled']
+
 
 class NodeMaker(object):
     """ Desciptor used as part of the blueprint for building the instance graph.
@@ -17,7 +21,7 @@ class NodeMaker(object):
         self.owner = None
 
     def get_or_build_node(self, instance):
-        pass
+        return instance.treeprimitives.FunctionNode(self.func, *arg_nodes)
 
     def __get__(self, instance, cls):
         """ descriptor protocol implementation
@@ -32,7 +36,7 @@ class NodeMaker(object):
             return self
 
 
-class SourceMaker(NodeMaker):
+class TangledSource(NodeMaker):
     pass
 
 
@@ -61,20 +65,22 @@ class TangledSelf(NodeMaker):
         return MethodCallMaker(method_name)
 
 class TangleMeta(type):
-    """ Goes through all the Element descriptors and set the attribute
-    name on them. So we can identify the calculation nodes by name and
-    cache them by the same name
-    """
 
-    def __prepare__(names, bases, **kwds):
+    def __prepare__(name, bases, **kwds):
+        print('Preparing', name)
         return {'TangledSource': TangledSource,
-                'self': TangledSelf()}
+                'self': TangledSelf()
+                }
 
     def __new__(meta, name, bases, namespace):
-        namespace['tangled_maps'] = {}
         return super().__new__(meta, name, bases, namespace)
 
     def __init__(cls, name, bases, namespace):
+        print('Init', name)
+        print(namespace)
+        namespace['_calculations'] = {}
+        namespace['_sources'] = {}
+        namespace['tangled_maps'] = {}
         for name, attr in namespace.items():
             if isinstance(attr, NodeMaker):
                 # Sets name and owner on a NodeMaker instance
@@ -85,16 +91,17 @@ class TangleMeta(type):
                 # to refer to Element instances with other owner classes
                 namespace['tangled_maps'][attr.mapping_for] =  attr
         super().__init__(name, bases, namespace)
+        print(namespace)
 
 class Tangled(metaclass=TangleMeta):
     """ Base class for tangled behaviour.
     """
 
-    source_monitor_callbacks = set()
+    _treeprimitives = basetreeprimitives
 
-    def __init__(self):
-        self._calculations = {}
-        self._sources = {}
+    @property
+    def treeprimitives(self):
+        return self._treeprimitives
 
     def get_mapped_object(self, other_class):
         try:
@@ -135,7 +142,7 @@ class Tangled(metaclass=TangleMeta):
             return func
         return register
 
-class TangledMapper(oject):
+class TangledMapper(object):
     """ Class that implements relations between instances of one class to the other.
     """
 

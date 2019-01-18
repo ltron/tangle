@@ -6,11 +6,13 @@ from tangle import basetreeprimitives, make_tangled_base
 
 Tangled = make_tangled_base(basetreeprimitives)
 
+
 @Tangled.tangled_function
 async def do_stuff(a, b):
     """ Decorator ensures that this function can be used in a Tangled graph
     """ 
     return 10.0 * a / (4 * b)
+
 
 class Foo(Tangled):
 
@@ -20,6 +22,7 @@ class Foo(Tangled):
     
     #  Setup a function node with the sources as input
     foo_value = do_stuff(source1, source2)
+
 
 class Bar(Tangled):
 
@@ -41,6 +44,7 @@ class Bar(Tangled):
     # nodes can be dependant on nodes in other objects
     bar_value = (source1 - Foo.foo_value) / Foo.source1
 
+
 async def source_feeder(sources):
     """This coroutine will update a source node with values at random intervals
     """
@@ -48,6 +52,7 @@ async def source_feeder(sources):
         chosen_source = random.choice(sources)
         await curio.sleep(random.uniform(0.5, 2))
         await chosen_source.set_value(random.uniform(-100,100))
+
 
 async def print_watcher(node):
     """ A watcher of a node that prints when update happens.
@@ -60,6 +65,7 @@ async def print_watcher(node):
         value = await node.value()
         print(f'{node.name()}: {value}')
         update_event.clear()
+
 
 async def main():
     # Create a foo and a bar object that contains the Element objects
