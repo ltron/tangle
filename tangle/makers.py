@@ -6,7 +6,7 @@ __all__ = ['Tangled']
 
 
 class NodeMaker(object):
-    """ Desciptor used as part of the blueprint for building the instance graph.
+    """ Descriptor used as part of the blueprint for building the instance graph.
     """
 
     def __init__(self, func, *args):
@@ -37,7 +37,9 @@ class NodeMaker(object):
 
 
 class TangledSource(NodeMaker):
-    pass
+
+    def get_or_build_node(self, instance):
+        return instance.treeprimitives.ValueNode()
 
 
 class MethodCallMaker(NodeMaker):
@@ -47,7 +49,7 @@ class MethodCallMaker(NodeMaker):
         self.method_name = method_name
         super().__init__(None)
 
-    async def build_node(self, obj, args):
+    def build_node(self, obj, args):
         method = getattr(obj, element.method_name)
         node = treeprimitives.FunctionNode(method, obj, args)
         return node
@@ -63,6 +65,7 @@ class TangledSelf(NodeMaker):
 
     def __getattr__(self, method_name):
         return MethodCallMaker(method_name)
+
 
 class TangleMeta(type):
 
@@ -141,6 +144,7 @@ class Tangled(metaclass=TangleMeta):
             func.mapping_for = other
             return func
         return register
+
 
 class TangledMapper(object):
     """ Class that implements relations between instances of one class to the other.

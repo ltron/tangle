@@ -1,7 +1,6 @@
 """ Module containing example node objects that can be used by Element descriptors
 to build a data flow graph
 """
-import inspect
 from types import SimpleNamespace
 
 __all__ = ['basetreeprimitives']
@@ -27,15 +26,12 @@ class BaseNode:
     def __repr__(self):
         return self.__str__()
 
-    async def notify_update(self):
-        if self.is_initialised():
-            # Only propagate update if this node (and its children)
-            # are initialised 
+    def notify_update(self):
             self._dirty = True
             for node in self._dependants:
-                await node.notify_update()
+                node.notify_update()
             for event in self._update_events:
-                await event.set()
+                event.set()
 
     def add_dependant(self, other):
         self._dependants.add(other)
@@ -54,32 +50,30 @@ class BaseNode:
     def name(self):
         return self._element.name
 
+
 class FunctionNode(BaseNode):
     """ A function node whose inputs are the child nodes.
     """
     def __init__(self, func, *args):
         super().__init__()
         self._func = func
-        self.iscoroutinefunction = inspect.iscoroutinefunction(func)
         self._args = args
         for arg in args:
             arg.add_dependant(self)
 
-    async def value(self):
-        """ coroutine that calculates or returns a cached value
-        """
+    def calculate_value(self):
         if not self._dirty:
-            return self._cached_value
+            return
         args = []
         for arg in self._args:
-            value = await arg.value()
-            args.append(value)
-        if self.iscoroutinefunction:
-            # handle the case when the func is a coroutine
-            self._cached_value = await self._func(*args)
-        else:
-            self._cached_value = self._func(*args)
-        self._dirty = False
+            args.append(arg.value())
+        self._cached_value = self._func(*args)
+
+    def value(self):
+        """ coroutine that calculates or returns a cached value
+        """
+        if self._dirty:
+            raise
         return self._cached_value
 
     def is_initialised(self):
@@ -90,13 +84,13 @@ class FunctionNode(BaseNode):
         return self._initialised
 
 class ValueNode(BaseNode):
-    """ A realised node that contians a value. Used as source nodes.
+    """ A realised node that contains a value. Used as source nodes.
     """
     def __init__(self):
         super().__init__()
         self._initialised = False
 
-    async def value(self):
+    def value(self):
         return self._cached_value
 
     def is_initialised(self):
@@ -105,7 +99,7 @@ class ValueNode(BaseNode):
     async def set_value(self, value):
         self._initialised = True
         self._cached_value = value
-        await self.notify_update()
+        self.notify_update()
 
 basetreeprimitives = SimpleNamespace(FunctionNode = FunctionNode,
                                  ValueNode = ValueNode)
