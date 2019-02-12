@@ -3,7 +3,9 @@ to build a data flow graph
 """
 from types import SimpleNamespace
 
+
 __all__ = ['basetreeprimitives']
+
 
 class BaseNode:
     """ Base class for all node types
@@ -96,12 +98,13 @@ class ValueNode(BaseNode):
     def is_initialised(self):
         return self._initialised
 
-    async def set_value(self, value):
+    def set_value(self, value):
         self._initialised = True
         self._cached_value = value
         self.notify_update()
 
+
 basetreeprimitives = SimpleNamespace(FunctionNode = FunctionNode,
-                                 ValueNode = ValueNode)
+                                     ValueNode = ValueNode)
 
 
