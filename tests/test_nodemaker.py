@@ -1,21 +1,23 @@
+import logging
+
 from tangle import Tangled
 
 
 def test_node():
-
     @Tangled.tangled_function
-    async def do_stuff(a, b):
+    def average(a, b):
         """ Decorator ensures that this function can be used in a Tangled graph
         """
-        return 10.0 * a / (4 * b)
+        return (a + b) / 2
 
     class Foo(Tangled):
-        # Setup two sources
         source1 = TangledSource()
         source2 = TangledSource()
 
-        #  Setup a function node with the sources as input
-        foo_value = do_stuff(source1, source2)
+        foo_value = average(source1, source2)
+
+        def __str__(self):
+            return 'Foo<Instance>'
 
     class Bar(Tangled):
 
@@ -35,14 +37,17 @@ def test_node():
 
         # Defines a bar Element that references Elements on Foo. This is how
         # nodes can be dependant on nodes in other objects
-        bar_value = (source1 - Foo.foo_value) / Foo.source1
+        bar_value = (source1 + Foo.foo_value) / Foo.source1
+
+        def __str__(self):
+            return 'Bar<Instance>'
 
     foo = Foo()
     bar = Bar(foo)
 
-    foo.source1 = 1.0
-    foo.source1 = 2.0
+    foo.source1 = 5.0
+    foo.source2 = 3.0
 
-    bar.source1 = 0.5
+    bar.source1 = 6.0
 
-    print(dir(bar))
+    print(bar.bar_value)
