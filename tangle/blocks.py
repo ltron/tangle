@@ -11,6 +11,7 @@ __all__ = ['make_tangled_base']
 class MappingError(Exception):
     pass
 
+
 def make_tangled_base(treeprimitives):
     """ Creates the Tangled base class. If a class inherits from this it will be
     able be part of a tangled graph structure
@@ -212,8 +213,6 @@ def make_tangled_base(treeprimitives):
                 func.mapping_for = other
                 return func
             return register 
-
-
 
     return Tangled
 
