@@ -3,7 +3,7 @@ try:
 except ImportError:
     from distutils.core import setup
 
-#tests_require = ['pytest', 'Sphinx']
+tests_require = ['pytest']
 
 long_description = """
 Tangle is a library for building directed data flow graphs.
