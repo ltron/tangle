@@ -1,4 +1,11 @@
-""" Example of how to run tangle with asyncio.
+""" Example of how to drive a tangled graph using asyncio.
+
+The foo and bar Tangled objects are setup. The source nodes
+are fed with random numbers using coroutines wrapped in tasks.
+
+The top level nodes (that depends on the source nodes) are
+subscribed to. Updated values are printed whenever these top
+level nodes needs to be recalculated due to a source update.
 """
 import asyncio
 import random
@@ -16,9 +23,13 @@ def average(a, b):
 
 
 class Foo(Tangled):
+
+    # Source nodes on Foo
     source1 = TangledSource()
     source2 = TangledSource()
 
+    # This Blueprint will build nodes that call the function average
+    # defined above
     foo_value = average(source1, source2)
 
     def __str__(self):
@@ -33,16 +44,17 @@ class Bar(Tangled):
 
     @Tangled.tangled_map(Foo)
     def my_foo(self):
-        """ The decorator ensures that Bar can find Element objects in the Foo
-        class
+        """ The decorator is used by the TangledMapper class to find the
+        link between a Bar instance and an Foo instance. This means that
+        a node in Bar can reference nodes in the other class.
         """
         return self._foo
 
     # Define a source on Bar
     source1 = TangledSource()
 
-    # Defines a bar Element that references Elements on Foo. This is how
-    # nodes can be dependant on nodes in other objects
+    # Defines a bar Blueprint that references Blueprints on Foo. This is how
+    # nodes become be dependant on nodes in other objects
     bar_value = (source1 + Foo.foo_value) / Foo.source1
 
     def __str__(self):
@@ -50,7 +62,8 @@ class Bar(Tangled):
 
 
 async def source_feeder(tangled_object, source_name):
-    """This coroutine will update a source node with values at random intervals
+    """ This coroutine will update a Foo or Bar source node with values at
+    random intervals
     """
     for _ in range(4):
         await asyncio.sleep(random.uniform(0.5, 2))
@@ -58,7 +71,9 @@ async def source_feeder(tangled_object, source_name):
 
 
 async def print_watcher(tangled_object, node_name):
-    """ A watcher of a node that prints when update happens.
+    """ A watcher of a node. It subscribes by providing an event to the
+    node. If a source the node is dependent on is updated the event will
+    be set and the new value is printed (and tree evaluated if required).
     """
     event = asyncio.Event()
     tangled_object.subscribe(node_name, event)
@@ -75,16 +90,21 @@ async def main():
     foo = Foo()
     bar = Bar(foo)
 
+    # Prime the source nodes
     foo.source1 = 5.0
     foo.source2 = 3.0
     bar.source1 = 6.0
 
+    # Create tasks to update the source nodes in foo and bar
     foo_source1 = asyncio.create_task(source_feeder(foo, 'source1'))
     foo_source2 = asyncio.create_task(source_feeder(foo, 'source2'))
     bar_source1 = asyncio.create_task(source_feeder(bar, 'source1'))
+
+    # Create watcher tasks that listens for updates on foo_value and bar_value
     foo_watcher = asyncio.create_task(print_watcher(foo, 'foo_value'))
     bar_watcher = asyncio.create_task(print_watcher(bar, 'bar_value'))
 
+    # Wait for the tasks to finish
     await asyncio.gather(foo_source1, foo_source2, bar_source1, foo_watcher, bar_watcher)
 
 
