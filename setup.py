@@ -21,7 +21,7 @@ setup(name="Tangle",
       maintainer_email="gustav.nordman@gmail.com",
       url="https://github.com/ltron/tangle",
       packages=['tangle'],
-      #tests_require=tests_require,
+      tests_require=tests_require,
       #extras_require={
       #    'test': tests_require,
       #},
