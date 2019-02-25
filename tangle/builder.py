@@ -4,16 +4,19 @@ from collections import deque
 
 from .bricks import FunctionNode, ValueNode
 from .blueprints import NodeBlueprint
+from .mappers import TangledMapper
 
 
 class TreeBuilder(object):
 
     def __init__(self,
-                 function_node_factory = FunctionNode,
-                 value_node_factory = ValueNode
+                 function_node_factory=FunctionNode,
+                 value_node_factory=ValueNode,
+                 instance_mapper=None
                  ):
         self.function_node_factory = function_node_factory
         self.value_node_factory = value_node_factory
+        self.mapper = instance_mapper if instance_mapper else TangledMapper()
 
     def build_node(self, blueprint, instance, arg_nodes = []):
         if blueprint.is_value_node:
@@ -27,9 +30,9 @@ class TreeBuilder(object):
         while to_build:
             tangled_instance, blueprint = to_build.pop()
             if blueprint.node_for_other_class(tangled_instance):
-                tangled_instance = tangled_instance.mapper.get_mapped_object(tangled_instance,
-                                                                     blueprint.owner_class)
-            node = tangled_instance.nodes.get(blueprint, None)
+                tangled_instance = self.mapper.get_mapped_object(tangled_instance,
+                                                                 blueprint.owner_class)
+            node = tangled_instance.nodes.get(blueprint.name, None)
             if node is None:
                 bricks.append((tangled_instance, blueprint))
                 if blueprint.arg_count > 0:
@@ -47,7 +50,7 @@ class TreeBuilder(object):
                 for i in range(blueprint.arg_count):
                     func_args.appendleft(arg_stack.pop())
                 last_node = self.build_node(blueprint, tangled_instance, func_args)
-                tangled_instance.nodes[blueprint] = last_node
+                tangled_instance.nodes[blueprint.name] = last_node
                 arg_stack.append(last_node)
             else:
                 last_node = node_or_blueprint

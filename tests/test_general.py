@@ -1,9 +1,12 @@
 import logging
 
-from tangle import Tangled
+from tangle import Tangled, TreeBuilder, BasicEvaluator
 
 
 def test_node():
+
+    Tangled.set_handlers(TreeBuilder(), BasicEvaluator())
+
     @Tangled.tangled_function
     def average(a, b):
         """ Decorator ensures that this function can be used in a Tangled graph

@@ -2,6 +2,8 @@
 to build a data flow graph
 """
 
+from weakref import WeakSet
+
 __all__ = ['FunctionNode', 'ValueNode']
 
 
@@ -9,11 +11,18 @@ class BaseNode:
     """ Base class for all node types
     """
 
+    __slots__ = ['blueprint',
+                 'instance',
+                 '_dependants',
+                 '_update_events',
+                 '_cached_value',
+                 'dirty']
+
     def __init__(self, blueprint, instance):
         self.blueprint = blueprint
         self.instance = instance
         self._dependants = set()
-        self._update_events = set()
+        self._update_events = WeakSet()
         self._cached_value = None
         self.dirty = True
 
@@ -28,6 +37,12 @@ class BaseNode:
     def __repr__(self):
         return self.__str__()
 
+    @property
+    def name(self):
+        if self.blueprint.is_anonymous():
+            return '<AnonymousNode>'
+        return self.blueprint.name
+
     def notify_update(self):
         for node in self._dependants:
             node.dirty = True
@@ -38,14 +53,19 @@ class BaseNode:
     def add_as_dependant(self, other):
         self._dependants.add(other)
 
-    def register_for_notification(self, event):
+    def register_event(self, event):
+        """ Registers an event that gets set when this node
+        is set to dirty.
+
+        :param event:
+        :return:
+        """
         self._update_events.add(event)
 
     def value(self):
         """ calculates or returns a cached value
         """
         if self.dirty:
-            print(self.blueprint.name)
             raise Exception('Todo Strange exception rename')
         return self._cached_value
 
@@ -53,6 +73,9 @@ class BaseNode:
 class FunctionNode(BaseNode):
     """ A function node whose inputs are the child nodes.
     """
+
+    __slots__ = ['_func',
+                 'arg_nodes']
 
     is_value_node = False
 
@@ -76,6 +99,8 @@ class FunctionNode(BaseNode):
 class ValueNode(BaseNode):
     """ A realised node that contains a value. Used as source nodes.
     """
+
+    __slots__ = []
 
     is_value_node = True
 

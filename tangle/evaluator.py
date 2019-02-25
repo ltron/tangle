@@ -5,13 +5,12 @@ import logging
 
 from collections import deque
 
+from .exceptions import CalculationException
+
 logger = logging.getLogger(__name__)
 
 
-class Evaluator(object):
-
-    def __init__(self):
-        pass
+class BasicEvaluator(object):
 
     def evaluate(self, node):
         tree = deque([node])
@@ -25,4 +24,8 @@ class Evaluator(object):
                     tree.append(arg_node)
         while to_evaluate:
             node = to_evaluate.pop()
-            node.calculate()
+            try:
+                node.calculate()
+            except Exception as exc:
+                raise CalculationException(f'Error evaluating node {node.name}') from exc
+

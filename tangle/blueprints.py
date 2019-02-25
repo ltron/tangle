@@ -17,7 +17,7 @@ class NodeBlueprint(object):
         """
         self.func = func
         self.blueprint_args = blueprint_args
-        self.name = None
+        self.name = id(self)
         self.owner_class = None
 
     def __str__(self):
@@ -63,7 +63,7 @@ class NodeBlueprint(object):
             return result
         elif cls:
             # If we access from a class then return self so it can be used to
-            # build blueprint graph
+            # build the blueprint graph
             return self
 
     # Magic methods create new NodeMakers objects for all standard operations

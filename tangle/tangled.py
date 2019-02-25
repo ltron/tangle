@@ -1,9 +1,7 @@
 from functools import wraps
 
 from .blueprints import NodeBlueprint, TangledSource, TangledSelf
-from .builder import TreeBuilder
-from .evaluator import Evaluator
-from .mappers import TangledMapper
+from .exceptions import NodeError
 
 __all__ = ['Tangled']
 
@@ -21,9 +19,6 @@ class TangleMeta(type):
 
     def __new__(meta, name, bases, namespace):
         namespace['tangled_maps'] = {}
-        namespace['builder'] = TreeBuilder()
-        namespace['evaluator'] = Evaluator()
-        namespace['mapper'] = TangledMapper()
         return super().__new__(meta, name, bases, namespace)
 
     def __init__(cls, name, bases, namespace):
@@ -42,8 +37,16 @@ class Tangled(metaclass=TangleMeta):
     """ Base class for tangled behaviour.
     """
 
+    builder = None
+    evaluator = None
+
     def __init__(self):
         self.nodes = {}
+
+    @classmethod
+    def set_handlers(cls, builder, evaluator):
+        cls.builder = builder
+        cls.evaluator = evaluator
 
     @staticmethod
     def tangled_function(func):
@@ -63,3 +66,12 @@ class Tangled(metaclass=TangleMeta):
             func.mapping_for = other
             return func
         return register
+
+    def subscribe(self, node_name, event):
+        try:
+            # Initialise tree if required
+            getattr(self, node_name)
+            node = self.nodes[node_name]
+        except KeyError:
+            raise NodeError(f'No node {node_name} to subscribe to.')
+        node.register_event(event)
