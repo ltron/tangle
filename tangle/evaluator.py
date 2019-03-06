@@ -1,6 +1,8 @@
 """ Module that implements an evaluator class. Used to traverse and
 evaluate trees.
 """
+__all__ = ['BasicEvaluator']
+
 import logging
 
 from collections import deque

@@ -1,13 +1,13 @@
 import logging
 
-from tangle import Tangled, TreeBuilder, BasicEvaluator
+from tangle import Tangled, TreeBuilder, BasicEvaluator, tangled_function, tangled_map
 
 
 def test_node():
 
     Tangled.set_handlers(TreeBuilder(), BasicEvaluator())
 
-    @Tangled.tangled_function
+    @tangled_function
     def average(a, b):
         """ Decorator ensures that this function can be used in a Tangled graph
         """
@@ -28,7 +28,7 @@ def test_node():
             super().__init__()
             self._foo = foo
 
-        @Tangled.tangled_map(Foo)
+        @tangled_map(Foo)
         def my_foo(self):
             """ The decorator ensures that Bar can find Element objects in the Foo
             class

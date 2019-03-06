@@ -6,6 +6,8 @@ from .bricks import FunctionNode, ValueNode
 from .blueprints import NodeBlueprint
 from .mappers import TangledMapper
 
+__all__ = ['TreeBuilder']
+
 
 class TreeBuilder(object):
 

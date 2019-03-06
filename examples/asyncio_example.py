@@ -10,12 +10,12 @@ level nodes needs to be recalculated due to a source update.
 import asyncio
 import random
 
-from tangle import Tangled, TreeBuilder, BasicEvaluator
+from tangle import Tangled, TreeBuilder, BasicEvaluator, tangled_function, tangled_map
 
 Tangled.set_handlers(TreeBuilder(), BasicEvaluator())
 
 
-@Tangled.tangled_function
+@tangled_function
 def average(a, b):
     """ Decorator ensures that this function can be used in a Tangled graph
     """
@@ -42,7 +42,7 @@ class Bar(Tangled):
         super().__init__()
         self._foo = foo
 
-    @Tangled.tangled_map(Foo)
+    @tangled_map(Foo)
     def my_foo(self):
         """ The decorator is used by the TangledMapper class to find the
         link between a Bar instance and an Foo instance. This means that

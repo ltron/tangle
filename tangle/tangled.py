@@ -3,7 +3,9 @@ from functools import wraps
 from .blueprints import NodeBlueprint, TangledSource, TangledSelf
 from .exceptions import NodeError
 
-__all__ = ['Tangled']
+__all__ = ['Tangled',
+           'tangled_function',
+           'tangled_map']
 
 
 class TangleMeta(type):
@@ -48,25 +50,6 @@ class Tangled(metaclass=TangleMeta):
         cls.builder = builder
         cls.evaluator = evaluator
 
-    @staticmethod
-    def tangled_function(func):
-        """ Decorator to create a tangled function element
-        """
-        @wraps(func)
-        def wrapper(*args):
-            return NodeBlueprint(func, *args)
-        return wrapper
-
-    @staticmethod
-    def tangled_map(other):
-        """ Decorator that registers the method to be a mapping to
-        the class other
-        """
-        def register(func):
-            func.mapping_for = other
-            return func
-        return register
-
     def subscribe(self, node_name, event):
         try:
             # Initialise tree if required
@@ -75,3 +58,22 @@ class Tangled(metaclass=TangleMeta):
         except KeyError:
             raise NodeError(f'No node {node_name} to subscribe to.')
         node.register_event(event)
+
+
+def tangled_function(func):
+    """ Decorator to create a tangled function element
+    """
+    @wraps(func)
+    def wrapper(*args):
+        return NodeBlueprint(func, *args)
+    return wrapper
+
+
+def tangled_map(other):
+    """ Decorator that registers the method to be a mapping to
+    the class other
+    """
+    def register(func):
+        func.mapping_for = other
+        return func
+    return register
