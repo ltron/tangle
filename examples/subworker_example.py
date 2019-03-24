@@ -11,9 +11,10 @@ def fib(n):
     if n <= 1:
         return n
     a, b = 0, 1
-    while i<=n:
+    while i <= n:
         yield a
         a, b = b, a + b
+
 
 class SubWork(Tangled):
 
@@ -34,4 +35,7 @@ class Work(Tangled):
     def sub_workers(self):
         return []
 
-    work = sum_of(sub_workers@derived_work)
+    work_from_children = tmap('derived_work', self.sub_workers)
+
+    gathered_work = sum_of(work_from_children)
+
