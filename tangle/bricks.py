@@ -4,7 +4,7 @@ to build a data flow graph
 
 from weakref import WeakSet
 
-__all__ = ['FunctionNode', 'ValueNode']
+__all__ = ['FunctionNode', 'ContainerNode', 'ValueNode']
 
 
 class BaseNode:
@@ -93,6 +93,18 @@ class FunctionNode(BaseNode):
         for arg_node in self.arg_nodes:
             args.append(arg_node.value())
         self._cached_value = self._func(*args)
+        self.dirty = False
+
+
+class ContainerNode(FunctionNode):
+
+    def calculate(self):
+        if not self.dirty:
+            return
+        args = []
+        for arg_node in self.arg_nodes:
+            args.append(arg_node.value())
+        self._cached_value = self._func(args)
         self.dirty = False
 
 

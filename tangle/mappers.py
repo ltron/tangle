@@ -1,4 +1,7 @@
 
+class MappingError(Exception):
+    pass
+
 class TangledMapper(object):
     """ Class that implements relations between instances of one class to the other.
     """

@@ -6,18 +6,9 @@ __all__ = ['NodeBlueprint', 'TangledSelf', 'TangledSource', 'MethodCallBlueprint
 
 
 class NodeBlueprint(object):
-    """ Descriptor used as part of the blueprint for building the instance graph.
-    """
 
-    def __init__(self, func, *blueprint_args):
-        """
-        func - callable that will be applied to the results of the input nodes
-        args - input Element descriptors, these will provide the input to func in
-                the realised node.
-        """
-        self.func = func
-        self.blueprint_args = blueprint_args
-        self.name = id(self)
+    def __init__(self):
+        self.name = None
         self.owner_class = None
 
     def __str__(self):
@@ -28,15 +19,27 @@ class NodeBlueprint(object):
         return self.__str__()
 
     def __set_name__(self, owner_class, name):
-        self.owner_class = owner_class
+        if self.owner_class is None:
+            self.owner_class = owner_class
         self.name = name
 
     @property
-    def arg_count(self):
-        return len(self.blueprint_args)
+    def input_count(self):
+        return 0
+
+    def inputs(self):
+        return None
 
     @property
     def is_value_node(self):
+        return False
+
+    @property
+    def is_container_node(self):
+        return False
+
+    @property
+    def is_method_call(self):
         return False
 
     def is_anonymous(self):
@@ -69,30 +72,52 @@ class NodeBlueprint(object):
     # Magic methods create new NodeMakers objects for all standard operations
     # These elements won't have a name and is thus anonymous
     def __add__(self, other):
-        return NodeBlueprint(operator.add, self, other)
+        return FuncBlueprint(operator.add, self, other)
 
     def __matmul__(self, other):
-        return NodeBlueprint(operator.matmul, self, other)
+        return FuncBlueprint(operator.matmul, self, other)
 
     def __mul__(self, other):
-        return NodeBlueprint(operator.mul, self, other)
+        return FuncBlueprint(operator.mul, self, other)
 
     def __sub__(self, other):
-        return NodeBlueprint(operator.sub, self, other)
+        return FuncBlueprint(operator.sub, self, other)
 
     def __truediv__(self, other):
-        return NodeBlueprint(operator.truediv, self, other)
+        return FuncBlueprint(operator.truediv, self, other)
+
+
+class FuncBlueprint(NodeBlueprint):
+    """ Descriptor used as part of the blueprint for building the instance graph.
+    """
+
+    def __init__(self, func, *blueprint_args):
+        """
+        func - callable that will be applied to the results of the input nodes
+        args - input Element descriptors, these will provide the input to func in
+                the realised node.
+        """
+        super().__init__()
+        self.func = func
+        self.blueprint_args = blueprint_args
+        self.name = id(self)
+        self.owner_class = None
+
+    @property
+    def input_count(self):
+        return len(self.blueprint_args)
+
+    def inputs(self):
+        return self.blueprint_args
 
 
 class TangledSource(NodeBlueprint):
 
     def __init__(self):
-        self.name = None
-        self.owner_class = None
-        self.args = ()
+        super().__init__()
 
     @property
-    def arg_count(self):
+    def input_count(self):
         return 0
 
     @property
@@ -104,27 +129,49 @@ class TangledSource(NodeBlueprint):
         node.set_value(value)
 
 
-class MethodCallBlueprint(NodeBlueprint):
-    """ Element to allow graph building in an element type way
-    """
-    def __init__(self, method_name):
-        self.method_name = method_name
-        super().__init__(None)
+class MethodBlueprint(FuncBlueprint):
 
-    def build_node(self, obj, args):
-        method = getattr(obj, element.method_name)
-        node = treeprimitives.FunctionNode(method, obj, args)
-        return node
+    @property
+    def is_method_call(self):
+        return True
 
 
-class TangledSelf(NodeBlueprint):
+def method_caller(method_name):
+    def wrapped(instance, *args, **kwds):
+        return operator.methodcaller(method_name, *args, **kwds)(instance)
+    return wrapped
+
+
+class TangledSelf(object):
     """ object that is a proxy for the class itself. To be able
     to build the graph from a method call.
     """
 
     def __init__(self):
-        super().__init__(None)
+        self.owner_class = None
 
     def __getattr__(self, method_name):
-        return MethodCallBlueprint(method_name)
+        def wrap(*args, **kwds):
+            return MethodBlueprint(method_caller(method_name), *args, **kwds)
+        return wrap
 
+
+class TangledList(NodeBlueprint):
+    """
+    """
+
+    def __init__(self, _list):
+        super().__init__()
+        self._list = _list
+        self.func = list
+
+    @property
+    def input_count(self):
+        return len(self._list)
+
+    def inputs(self):
+        return self._list
+
+    @property
+    def is_container_node(self):
+        return True
