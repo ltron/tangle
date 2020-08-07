@@ -1,10 +1,9 @@
 from functools import wraps
 
-from .blueprints import NodeBlueprint, TangledSource, TangledSelf
+from .blueprints import NodeBlueprint, TangledSource, TangledSelf, tmap
 from .exceptions import NodeError
 
-__all__ = ['Tangled']
-
+__all__ = ['Tangled']    
 
 class TangleMeta(type):
 
@@ -14,7 +13,8 @@ class TangleMeta(type):
         tangled class body is executed.
         """
         return {'TangledSource': TangledSource,
-                'self': TangledSelf()
+                'self': TangledSelf(),
+                'tmap': tmap
                 }
 
     def __new__(meta, name, bases, namespace):
@@ -58,14 +58,14 @@ class Tangled(metaclass=TangleMeta):
         return wrapper
 
     @staticmethod
-    def tangled_map(other):
+    def tangled_map(klass):
         """ Decorator that registers the method to be a mapping to
         the class other
         """
-        def register(func):
-            func.mapping_for = other
-            return func
-        return register
+        def outer(method):
+            _map = TangledMap(method, klass)
+            return _map
+        return outer
 
     def subscribe(self, node_name, event):
         try:
@@ -75,3 +75,17 @@ class Tangled(metaclass=TangleMeta):
         except KeyError:
             raise NodeError(f'No node {node_name} to subscribe to.')
         node.register_event(event)
+
+class TangledMap(object):
+    def __init__(self, method, klass):
+        self.method = method
+        self.klass = klass
+    
+    def __call__(self, instance):
+        return self.method(instance)
+
+    def __getattr__(self, blueprint_name):
+        """ Tangled map "method" should look through to the underlying class 
+        for blueprints
+        """
+        return getattr(self.klass, blueprint_name)

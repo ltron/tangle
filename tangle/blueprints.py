@@ -2,7 +2,7 @@
 """
 import operator
 
-__all__ = ['NodeBlueprint', 'TangledSelf', 'TangledSource', 'MethodCallBlueprint']
+__all__ = ['NodeBlueprint', 'TangledSelf', 'TangledSource', 'MethodCallBlueprint', 'tmap']
 
 
 class NodeBlueprint(object):
@@ -128,3 +128,11 @@ class TangledSelf(NodeBlueprint):
     def __getattr__(self, method_name):
         return MethodCallBlueprint(method_name)
 
+def _tmap(blueprint_name):
+    def wrap(collection):
+        blueprint_name
+        1+1
+    return wrap
+
+def tmap(method_call, blueprint_name):
+    return NodeBlueprint(_tmap(blueprint_name), method_call)

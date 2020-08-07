@@ -1,3 +1,4 @@
+import pytest
 import logging
 
 from tangle import Tangled, TreeBuilder, BasicEvaluator
@@ -40,7 +41,7 @@ def test_node():
 
         # Defines a bar Element that references Elements on Foo. This is how
         # nodes can be dependant on nodes in other objects
-        bar_value = (source1 + Foo.foo_value) / Foo.source1
+        bar_value = (source1 + my_foo.foo_value) / my_foo.source1
 
         def __str__(self):
             return 'Bar<Instance>'
@@ -52,5 +53,37 @@ def test_node():
     foo.source2 = 3.0
 
     bar.source1 = 6.0
+
+    print(bar.bar_value)
+
+def test_tmap():
+
+    Tangled.set_handlers(TreeBuilder(), BasicEvaluator())
+
+    class Foo(Tangled):
+
+        source1 = TangledSource()
+
+        def __str__(self):
+            return 'Foo<Instance>'
+    
+    foo1 = Foo()
+    foo1.source1 = 2
+    foo2 = Foo()
+    foo2.source1 = 3
+
+    class Bar(Tangled):
+
+        def __init__(self, foos):
+            super().__init__()
+            self._foos = foos
+
+        def foos(self):
+            return self._foos
+
+        bar_value = tmap(self.foos, 'source1')
+
+    
+    bar = Bar([foo1, foo2])
 
     print(bar.bar_value)

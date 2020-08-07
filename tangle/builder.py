@@ -25,25 +25,25 @@ class TreeBuilder(object):
             return self.function_node_factory(blueprint, instance, *arg_nodes)
 
     def build(self, original_instance, blueprint):
-        to_build = deque([(original_instance, blueprint)])
-        bricks = deque()
-        while to_build:
-            tangled_instance, blueprint = to_build.pop()
+        to_visit = deque([(original_instance, blueprint)])
+        to_build = deque()
+        while to_visit:
+            tangled_instance, blueprint = to_visit.pop()
             if blueprint.node_for_other_class(tangled_instance):
                 tangled_instance = self.mapper.get_mapped_object(tangled_instance,
                                                                  blueprint.owner_class)
             node = tangled_instance.nodes.get(blueprint.name, None)
             if node is None:
-                bricks.append((tangled_instance, blueprint))
+                to_build.append((tangled_instance, blueprint))
                 if blueprint.arg_count > 0:
                     for blueprint_arg in blueprint.blueprint_args:
-                        to_build.append((tangled_instance, blueprint_arg))
+                        to_visit.append((tangled_instance, blueprint_arg))
             else:
-                bricks.append((tangled_instance, node))
+                to_build.append((tangled_instance, node))
         arg_stack = deque()
         last_node = None
-        while bricks:
-            tangled_instance, node_or_blueprint = bricks.pop()
+        while to_build:
+            tangled_instance, node_or_blueprint = to_build.pop()
             if isinstance(node_or_blueprint, NodeBlueprint):
                 blueprint = node_or_blueprint
                 func_args = deque()
