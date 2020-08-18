@@ -3,8 +3,29 @@ import logging
 
 from tangle import Tangled, TreeBuilder, BasicEvaluator
 
+def test_simple():
 
-def test_node():
+    Tangled.set_handlers(TreeBuilder(), BasicEvaluator())
+
+    class Foo(Tangled):
+
+        source1 = TangledSource()
+        source2 = TangledSource()
+
+        foo_value = source1 + source2
+    
+    foo = Foo()
+
+    foo.source1 = 1
+    foo.source2 = 2
+    value = foo.foo_value
+    assert(value==3)
+
+    foo.source1 = 3
+    assert(foo.foo_value == 5)
+
+
+def test_intraclass():
 
     Tangled.set_handlers(TreeBuilder(), BasicEvaluator())
 
@@ -15,10 +36,10 @@ def test_node():
         return (a + b) / 2
 
     class Foo(Tangled):
-        source1 = TangledSource()
-        source2 = TangledSource()
+        foo1 = TangledSource()
+        foo2 = TangledSource()
 
-        foo_value = average(source1, source2)
+        foo_value = average(foo1, foo2)
 
         def __str__(self):
             return 'Foo<Instance>'
@@ -29,7 +50,7 @@ def test_node():
             super().__init__()
             self._foo = foo
 
-        @Tangled.tangled_map(Foo)
+        @Tangled.link
         def my_foo(self):
             """ The decorator ensures that Bar can find Element objects in the Foo
             class
@@ -41,7 +62,7 @@ def test_node():
 
         # Defines a bar Element that references Elements on Foo. This is how
         # nodes can be dependant on nodes in other objects
-        bar_value = (source1 + my_foo.foo_value) / my_foo.source1
+        bar_value = (source1 + my_foo.foo_value) / my_foo.foo1
 
         def __str__(self):
             return 'Bar<Instance>'
@@ -49,8 +70,8 @@ def test_node():
     foo = Foo()
     bar = Bar(foo)
 
-    foo.source1 = 5.0
-    foo.source2 = 3.0
+    foo.foo1 = 5.0
+    foo.foo2 = 3.0
 
     bar.source1 = 6.0
 
@@ -78,10 +99,11 @@ def test_tmap():
             super().__init__()
             self._foos = foos
 
+        @Tangled.tangled_link
         def foos(self):
             return self._foos
 
-        bar_value = tmap(self.foos, 'source1')
+        bar_value = tmap(foos, 'source1')
 
     
     bar = Bar([foo1, foo2])

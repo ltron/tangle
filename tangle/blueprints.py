@@ -89,7 +89,7 @@ class TangledSource(NodeBlueprint):
     def __init__(self):
         self.name = None
         self.owner_class = None
-        self.args = ()
+        self.blueprint_args = ()
 
     @property
     def arg_count(self):
@@ -128,11 +128,21 @@ class TangledSelf(NodeBlueprint):
     def __getattr__(self, method_name):
         return MethodCallBlueprint(method_name)
 
-def _tmap(blueprint_name):
-    def wrap(collection):
-        blueprint_name
-        1+1
-    return wrap
 
-def tmap(method_call, blueprint_name):
-    return NodeBlueprint(_tmap(blueprint_name), method_call)
+class LinkBlueprint(NodeBlueprint):
+    
+    def __init__(self, method, blueprint_name):
+        self.method = method
+        self.blueprint_name = blueprint_name
+        self.name = self.method.__qualname__ + '->' + blueprint_name 
+
+class MultiLinkBlueprint(NodeBlueprint):
+    
+    def __init__(self, method, blueprint_name):
+        self.method = method
+        self.blueprint_name = blueprint_name
+        self.name = self.method.__qualname__ + '->' + blueprint_name 
+
+
+def tmap(tangled_link, blueprint_name):
+    return MultiLinkBlueprint(tangled_link, blueprint_name)

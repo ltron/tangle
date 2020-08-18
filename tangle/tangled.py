@@ -1,9 +1,10 @@
 from functools import wraps
+from weakref import WeakSet
 
-from .blueprints import NodeBlueprint, TangledSource, TangledSelf, tmap
+from .blueprints import NodeBlueprint, TangledSource, TangledSelf, LinkBlueprint, tmap
 from .exceptions import NodeError
 
-__all__ = ['Tangled']    
+__all__ = ['Tangled']
 
 class TangleMeta(type):
 
@@ -32,7 +33,6 @@ class TangleMeta(type):
                 namespace['tangled_maps'][attr.mapping_for] = attr
         super().__init__(name, bases, namespace)
 
-
 class Tangled(metaclass=TangleMeta):
     """ Base class for tangled behaviour.
     """
@@ -40,8 +40,10 @@ class Tangled(metaclass=TangleMeta):
     builder = None
     evaluator = None
 
+
     def __init__(self):
         self.nodes = {}
+        self._dependents = WeakSet()
 
     @classmethod
     def set_handlers(cls, builder, evaluator):
@@ -58,14 +60,12 @@ class Tangled(metaclass=TangleMeta):
         return wrapper
 
     @staticmethod
-    def tangled_map(klass):
+    def link(method):
         """ Decorator that registers the method to be a mapping to
         the class other
         """
-        def outer(method):
-            _map = TangledMap(method, klass)
-            return _map
-        return outer
+        _map = TangledLink(method)
+        return _map
 
     def subscribe(self, node_name, event):
         try:
@@ -76,11 +76,14 @@ class Tangled(metaclass=TangleMeta):
             raise NodeError(f'No node {node_name} to subscribe to.')
         node.register_event(event)
 
-class TangledMap(object):
-    def __init__(self, method, klass):
+    @classmethod
+    def get_blueprint(cls, name):
+        return cls.__dict__[name]
+
+class TangledLink(object):
+    def __init__(self, method):
         self.method = method
-        self.klass = klass
-    
+
     def __call__(self, instance):
         return self.method(instance)
 
@@ -88,4 +91,4 @@ class TangledMap(object):
         """ Tangled map "method" should look through to the underlying class 
         for blueprints
         """
-        return getattr(self.klass, blueprint_name)
+        return LinkBlueprint(self.method, blueprint_name)

@@ -2,9 +2,15 @@
 """
 from collections import deque
 
-from .bricks import FunctionNode, ValueNode
-from .blueprints import NodeBlueprint
+from .nodes import FunctionNode, ValueNode
+from .blueprints import NodeBlueprint, TangledSource, LinkBlueprint, MultiLinkBlueprint
 from .mappers import TangledMapper
+
+class BuildUnit(object):
+    
+    def __init__(self, instance, node_or_blueprint):
+        self.instance = instance
+        self.node_or_blueprint = node_or_blueprint
 
 
 class TreeBuilder(object):
@@ -25,34 +31,91 @@ class TreeBuilder(object):
             return self.function_node_factory(blueprint, instance, *arg_nodes)
 
     def build(self, original_instance, blueprint):
+        """
+        !!!!!!
+        I think you can do this in one go by letting Nodes initialize without args
+        so build node then append empty arg Node shells and so on
+
+        """
         to_visit = deque([(original_instance, blueprint)])
-        to_build = deque()
+        stack = []
         while to_visit:
-            tangled_instance, blueprint = to_visit.pop()
-            if blueprint.node_for_other_class(tangled_instance):
-                tangled_instance = self.mapper.get_mapped_object(tangled_instance,
-                                                                 blueprint.owner_class)
-            node = tangled_instance.nodes.get(blueprint.name, None)
-            if node is None:
-                to_build.append((tangled_instance, blueprint))
+            instance, blueprint = to_visit.pop()
+            name = blueprint.name
+            if isinstance(blueprint, TangledSource):
+
+                node = instance.nodes.get(name, None)
+                if node is None:
+                    node = self.build_node(blueprint, instance)
+                    instance.nodes[name] = node
+                stack.append((None, node))
+            elif isinstance(blueprint, LinkBlueprint):
+                link = blueprint.method(instance)
+                link_blueprint = link.get_blueprint(blueprint.blueprint_name)
+                to_visit.append((link, link_blueprint))
+            elif isinstance(blueprint, MultiLinkBlueprint):
+                links = blueprint.method(instance)
+                # Hur fan skall jag kunna fa till collection har?
+                for link in links:
+                    link_blueprint = link.get_blueprint(blueprint.blueprint_name)
+                    to_visit.append((link, link_blueprint))
+            elif isinstance(blueprint, NodeBlueprint):
+                node = instance.nodes.get(name, None)
+                if node is None:
+                    stack.append((instance, blueprint))
+                    for blueprint_arg in reversed(blueprint.blueprint_args):
+                        to_visit.append((instance, blueprint_arg))
+                else:
+                    stack.append((None, node))
+        args = []
+        while stack:
+            instance, blueprint = stack.pop()
+            if instance:
                 if blueprint.arg_count > 0:
-                    for blueprint_arg in blueprint.blueprint_args:
-                        to_visit.append((tangled_instance, blueprint_arg))
+                    _args = []
+                    for _ in range(blueprint.arg_count):
+                        _args.append(args.pop())
+                    node = self.build_node(blueprint, instance, _args)
+                else:
+                    node = self.build_node(blueprint, instance, ())
+                args.append(node)
             else:
-                to_build.append((tangled_instance, node))
-        arg_stack = deque()
-        last_node = None
-        while to_build:
-            tangled_instance, node_or_blueprint = to_build.pop()
-            if isinstance(node_or_blueprint, NodeBlueprint):
-                blueprint = node_or_blueprint
-                func_args = deque()
-                for i in range(blueprint.arg_count):
-                    func_args.appendleft(arg_stack.pop())
-                last_node = self.build_node(blueprint, tangled_instance, func_args)
-                tangled_instance.nodes[blueprint.name] = last_node
-                arg_stack.append(last_node)
-            else:
-                last_node = node_or_blueprint
-                arg_stack.append(last_node)
-        return last_node
+                node = blueprint
+                args.append(node)
+        return node
+
+    def new_build(self, original_instance, blueprint):
+        """
+        !!!!!!
+        I think you can do this in one go by letting Nodes initialize without args
+        so build node then append empty arg Node shells and so on
+
+        """
+        to_visit = deque([(original_instance, blueprint)])
+        stack = []
+        while to_visit:
+            instance, blueprint = to_visit.pop()
+            name = blueprint.name
+            if isinstance(blueprint, TangledSource):
+                node = instance.nodes.get(name, None)
+                if node is None:
+                    node = self.build_node(blueprint, instance)
+                    instance.nodes[name] = node
+                stack.append((None, node))
+            elif isinstance(blueprint, LinkBlueprint):
+                other_instance = blueprint.method(instance)
+                if isinstance(other_instance, list):
+                    for i in other_instance:
+                        other_blueprint = i.get_blueprint(blueprint.blueprint_name)
+                        to_visit.append((i, other_blueprint))
+                else:
+                    other_blueprint = other_instance.get_blueprint(blueprint.blueprint_name)
+                    to_visit.append((i, other_blueprint))
+            elif isinstance(blueprint, NodeBlueprint):
+                node = instance.nodes.get(name, None)
+                if node is None:
+                    stack.append((instance, blueprint))
+                    for blueprint_arg in reversed(blueprint.blueprint_args):
+                        to_visit.append((instance, blueprint_arg))
+                else:
+                    stack.append((None, node))
